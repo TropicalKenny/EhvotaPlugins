@@ -184,6 +184,9 @@ Acceptance criteria:
 - [x] Define 100%, 125%, 150%, 175%, and 200% Windows scaling validation.
 - [x] Define UI performance budgets and reduced-motion behaviour.
 - [x] Pin accepted JUCE 8.0.9 source at official tag commit `f72bad64d29715216226685810c5196bd0d79d77`.
+- [ ] Implement and exercise the shared production shell contract.
+  Preset, undo/redo, A/B, processing-state, help, scaling, link/status, and output-meter semantics must remain reachable at every supported width; Windows rendering and keyboard exercise are required before completion.
+  `SuiteShell`, its semantic presentation model, responsive overflow policy, deterministic preview wiring, and portable validation tests now exist. The checkbox remains open for the Windows exercise.
 - [ ] Establish JUCE and the Windows MSVC/CMake build.
 - [ ] Compile and review the shared production UI component library on Windows. Source exists; JUCE/Windows build is unverified.
 - [x] Run a non-product compile-only C++20 syntax/warning check against pinned JUCE headers. All UI/preview translation units passed with `-Wall -Wextra -Wpedantic`; no link, render, or Windows claim is implied.
@@ -392,6 +395,7 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 - Extended Windows capture preparation with a `Journeys` matrix for every replay step. The PowerShell path remains unexecuted on this Linux host.
 - Re-ran the portable build and tests after journey replay integration: 1/1 CTest target passed. A warnings-enabled C++20 compile-only check also passed for the new journey model, preview-only component, shared UI, and preview application sources.
 - Expanded deterministic UI coverage to 24 scenarios with loading, stale-data, and long-label fixtures; promoted the persistent comparison context from paint-only text to a labelled component with full tooltip/accessibility text.
+- Added the production `SuiteShell` and dependency-free `ShellPresentation` policy. Compact/standard/wide layouts preserve all actions through labelled overflow; deterministic preview interactions cover presets, undo/redo, A/B, monitor/bypass, Help, scale, status, and output metering, with monitoring locked off in Render Safe.
 
 ## Unresolved questions
 

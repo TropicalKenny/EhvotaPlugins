@@ -3,6 +3,8 @@ add_library(EhvotaUI STATIC
     Components.h
     EhvotaLookAndFeel.cpp
     EhvotaLookAndFeel.h
+    SuiteShell.cpp
+    SuiteShell.h
     Theme.cpp
     Theme.h
 )

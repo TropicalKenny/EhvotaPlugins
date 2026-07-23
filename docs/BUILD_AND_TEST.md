@@ -120,6 +120,17 @@ Keyboard/accessibility:
 6. Run Windows Accessibility Insights or UIA Verify when available.
 7. Test high contrast and reduced-motion behavior.
 
+Shared-shell checks:
+
+1. At compact width, open **More** and verify Previous preset, Next preset, Save, Undo, and Redo remain labelled and keyboard reachable.
+2. At standard width, verify Undo/Redo move into the primary row while preset navigation and Save remain in **More**.
+3. At wide width, verify all actions are visible and **More** disappears.
+4. Exercise Ctrl+P, Ctrl+S, Ctrl+Z, Ctrl+Shift+Z, and F1; confirm focus and status feedback.
+5. Toggle A/B and the applicable Monitor/Bypass action, then change scenarios and confirm deterministic reset.
+6. In `render-safe`, confirm Monitor is off and disabled.
+7. Cycle scale selections and confirm the preview says this does not change Windows DPI; separately perform the real Windows scaling matrix.
+8. Confirm status detail and output level are exposed to Narrator where applicable.
+
 Review artefacts belong under `generated/ui-review/` and must not enter production binaries.
 
 ### Repeatable native screenshot capture

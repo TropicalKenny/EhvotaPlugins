@@ -3,7 +3,10 @@
 #include "shared/ui/Theme.h"
 #include "shared/viewmodels/LayoutPolicy.h"
 
+#include <algorithm>
 #include <array>
+#include <iterator>
+#include <utility>
 
 namespace ehvota::previewapp {
 namespace {
@@ -12,6 +15,14 @@ constexpr int outerPadding = 12;
 constexpr int headerHeight = 48;
 constexpr int comparisonHeight = 48;
 constexpr int footerHeight = 32;
+constexpr int compactMenuWidth = 92;
+
+int reviewSelectorWidth(const bool compact, const bool wide)
+{
+    if (compact)
+        return 276;
+    return wide ? 430 : 350;
+}
 
 const std::array<const char*, 14> refHubViews {
     "Overview", "Compare", "Library", "Mapping", "Sections", "Bands", "Dynamics",
@@ -39,6 +50,11 @@ PreviewComponent::PreviewComponent()
 {
     setWantsKeyboardFocus(true);
     setFocusContainerType(juce::Component::FocusContainerType::keyboardFocusContainer);
+
+    addAndMakeVisible(suiteShell_);
+    suiteShell_.onAction = [this](const ui::ShellAction action) {
+        handleShellAction(action);
+    };
 
     addAndMakeVisible(scenarioSelector_);
     const auto& scenarios = preview::allScenarios();
@@ -188,6 +204,16 @@ void PreviewComponent::loadScenario(const int scenarioIndex)
     setTitle(areaName(scenario_->area) + " preview: " + juce::String(scenario_->title));
     setDescription(
         juce::String(scenario_->description) + ". Reference context: " + comparisonContext);
+    shellComparisonB_ = false;
+    shellProcessingActive_ = scenario_->id != "render-safe";
+    shellCanUndo_ = scenario_->id == "proposal-applied";
+    shellCanRedo_ = false;
+    shellDefaultPresetName_ = scenario_->area == preview::ProductArea::refTime
+        ? "Host Timing"
+        : scenario_->area == preview::ProductArea::stemPrep
+            ? "Balanced 4-Stem"
+            : scenario_->reference;
+    shellPresetName_ = shellDefaultPresetName_;
 
     if (scenario_->id == "proposal-review") {
         primaryActionButton_.setButtonText("APPLY");
@@ -235,6 +261,7 @@ void PreviewComponent::loadScenario(const int scenarioIndex)
     rebuildScenarioComponents();
     updateNavigation();
     updateJourneyReplay();
+    updateShellPresentation();
     resized();
     repaint();
 }
@@ -316,6 +343,176 @@ void PreviewComponent::updateJourneyReplay()
     journeyNextButton_.setEnabled(journeyReplay_.canGoNext());
 }
 
+void PreviewComponent::updateShellPresentation()
+{
+    if (scenario_ == nullptr)
+        return;
+
+    preview::ShellPresentation presentation;
+    presentation.productName = areaName(scenario_->area).toStdString();
+    presentation.presetName = shellPresetName_;
+    presentation.canUndo = shellCanUndo_;
+    presentation.canRedo = shellCanRedo_;
+    presentation.comparisonB = shellComparisonB_;
+    presentation.processingActive = shellProcessingActive_;
+    presentation.scalePercent = shellScalePercent_;
+
+    using enum preview::ProductArea;
+    switch (scenario_->area) {
+    case refHub:
+        presentation.processingActionLabel = "MONITOR";
+        presentation.showProcessingAction = true;
+        presentation.showOutputMeter = true;
+        presentation.outputLevelDb = scenario_->id == "render-safe" ? -60.0 : -8.4;
+        if (scenario_->id == "render-safe") {
+            presentation.processingActionEnabled = false;
+            presentation.statusText = "RENDER SAFE";
+            presentation.statusDetail = "Monitoring and reference audition are excluded from export.";
+        }
+        else if (scenario_->id == "mapping-disconnected"
+            || scenario_->id == "bridge-unsupported"
+            || scenario_->id == "high-cpu"
+            || scenario_->id == "links-stale"
+            || scenario_->id == "capture-failed"
+            || scenario_->id == "reference-invalid-length") {
+            presentation.statusText = "ATTENTION";
+            presentation.statusDetail = scenario_->description;
+            presentation.statusIsWarning = true;
+        }
+        else {
+            presentation.statusText = "LINKS LOCAL";
+            presentation.statusDetail = "Same-process preview status. No network transport.";
+        }
+        break;
+    case refTime:
+        presentation.processingActionLabel = "BYPASS";
+        presentation.showProcessingAction = true;
+        presentation.showOutputMeter = true;
+        presentation.outputLevelDb = -12.0;
+        presentation.statusText = "HOST SYNC";
+        presentation.statusDetail = "120 BPM · 4/4 · technical latency 0 samples.";
+        break;
+    case stemPrep:
+        presentation.showProcessingAction = false;
+        presentation.showOutputMeter = false;
+        presentation.statusText = scenario_->id == "stem-prep-queue" ? "LOCAL ACTIVE" : "LOCAL ONLY";
+        presentation.statusDetail = "Standalone offline workflow. No audio leaves the computer.";
+        presentation.statusIsWarning = scenario_->id == "model-missing"
+            || scenario_->id == "model-license-error"
+            || scenario_->id == "installer-repair";
+        break;
+    }
+
+    suiteShell_.setPresentation(std::move(presentation));
+}
+
+void PreviewComponent::handleShellAction(const ui::ShellAction action)
+{
+    using enum ui::ShellAction;
+    switch (action) {
+    case selectPreset:
+        shellPresetName_ = suiteShell_.selectedPresetName().toStdString();
+        setTransientStatus(
+            "Preset selected for preview: " + juce::String(shellPresetName_)
+            + " · no project state written");
+        break;
+    case previousPreset:
+        moveShellPreset(false);
+        break;
+    case nextPreset:
+        moveShellPreset(true);
+        break;
+    case savePreset:
+        setTransientStatus("Preset save previewed · no file written");
+        return;
+    case undo:
+        if (!shellCanUndo_) {
+            setTransientStatus("Nothing to undo in this deterministic state");
+            return;
+        }
+        shellCanUndo_ = false;
+        shellCanRedo_ = true;
+        setTransientStatus("Scoped UI transaction undone · preview only");
+        break;
+    case redo:
+        if (!shellCanRedo_) {
+            setTransientStatus("Nothing to redo in this deterministic state");
+            return;
+        }
+        shellCanUndo_ = true;
+        shellCanRedo_ = false;
+        setTransientStatus("Scoped UI transaction redone · preview only");
+        break;
+    case toggleComparison:
+        shellComparisonB_ = !shellComparisonB_;
+        setTransientStatus(
+            shellComparisonB_ ? "Shell comparison state: B" : "Shell comparison state: A");
+        break;
+    case toggleProcessing:
+        shellProcessingActive_ = !shellProcessingActive_;
+        setTransientStatus(
+            juce::String(scenario_ != nullptr
+                    && scenario_->area == preview::ProductArea::refHub
+                    ? "Monitoring "
+                    : "Processing ")
+            + (shellProcessingActive_ ? "enabled" : "bypassed")
+            + " · deterministic preview only");
+        break;
+    case help:
+        setTransientStatus(
+            "Context help: "
+            + juce::String(scenario_ != nullptr ? scenario_->journey : ""));
+        return;
+    case cycleScale: {
+        constexpr std::array scaleValues { 75, 100, 125, 150, 175, 200 };
+        const auto current = std::find(
+            scaleValues.begin(),
+            scaleValues.end(),
+            shellScalePercent_);
+        shellScalePercent_ = current == scaleValues.end()
+                || std::next(current) == scaleValues.end()
+            ? scaleValues.front()
+            : *std::next(current);
+        setTransientStatus(
+            "Interface scale selection: " + juce::String(shellScalePercent_)
+            + "% · preview token only; Windows DPI is unchanged");
+        break;
+    }
+    }
+
+    updateShellPresentation();
+}
+
+void PreviewComponent::moveShellPreset(const bool forward)
+{
+    std::vector<std::string> choices;
+    for (const auto& candidate : std::array {
+             shellDefaultPresetName_,
+             std::string("Default"),
+             std::string("Review A"),
+             std::string("Review B") }) {
+        if (std::find(choices.begin(), choices.end(), candidate) == choices.end())
+            choices.push_back(candidate);
+    }
+
+    const auto current = std::find(
+        choices.begin(),
+        choices.end(),
+        shellPresetName_);
+    auto index = current == choices.end()
+        ? std::size_t {}
+        : static_cast<std::size_t>(std::distance(choices.begin(), current));
+    if (forward)
+        index = (index + 1) % choices.size();
+    else
+        index = index == 0 ? choices.size() - 1 : index - 1;
+
+    shellPresetName_ = choices[index];
+    setTransientStatus(
+        "Preset preview: " + juce::String(shellPresetName_)
+        + " · deterministic state only");
+}
+
 void PreviewComponent::moveJourneyStep(const bool forward)
 {
     const auto moved = forward ? journeyReplay_.next() : journeyReplay_.previous();
@@ -337,14 +534,7 @@ void PreviewComponent::paint(juce::Graphics& graphics)
         return;
 
     auto bounds = getLocalBounds().reduced(outerPadding);
-    auto header = bounds.removeFromTop(headerHeight);
-
-    if (!isCompact()) {
-        graphics.setColour(juce::Colour(ui::colour::textMuted));
-        graphics.setFont(ui::font(11.0f, true));
-        graphics.drawText("EHVOTA / " + areaName(scenario_->area),
-            header.removeFromLeft(190), juce::Justification::centredLeft);
-    }
+    bounds.removeFromTop(headerHeight);
 
     auto comparison = bounds.removeFromTop(comparisonHeight);
     graphics.setColour(juce::Colour(ui::colour::base));
@@ -358,7 +548,16 @@ void PreviewComponent::paint(juce::Graphics& graphics)
     graphics.fillRoundedRectangle(footer.toFloat(), 6.0f);
     graphics.setColour(juce::Colour(ui::colour::textSecondary));
     graphics.setFont(ui::font(11.0f));
-    graphics.drawFittedText(transientStatus_, footer.reduced(10, 0), juce::Justification::centredLeft, 1);
+    auto footerText = footer.reduced(10, 0);
+    footerText.removeFromRight(
+        reviewSelectorWidth(isCompact(), isWide()) + 6);
+    if (isCompact())
+        footerText.removeFromLeft(compactMenuWidth + 6);
+    graphics.drawFittedText(
+        transientStatus_,
+        footerText,
+        juce::Justification::centredLeft,
+        1);
 
     auto workspace = bounds;
     if (!isCompact())
@@ -406,15 +605,7 @@ void PreviewComponent::resized()
 
     auto bounds = getLocalBounds().reduced(outerPadding);
     auto header = bounds.removeFromTop(headerHeight);
-    menuButton_.setVisible(isCompact());
-    if (isCompact()) {
-        menuButton_.setBounds(header.removeFromLeft(148).reduced(0, 6));
-        header.removeFromLeft(8);
-    }
-    else {
-        header.removeFromLeft(190);
-    }
-    scenarioSelector_.setBounds(header.reduced(0, 6));
+    suiteShell_.setBounds(header);
 
     auto comparison = bounds.removeFromTop(comparisonHeight).reduced(8, 7);
     const auto showComparisonControls = scenario_->area == preview::ProductArea::refHub;
@@ -439,7 +630,15 @@ void PreviewComponent::resized()
     comparisonContextLabel_.setBounds(comparison.reduced(6, 0));
 
     bounds.removeFromTop(10);
-    bounds.removeFromBottom(footerHeight);
+    auto footer = bounds.removeFromBottom(footerHeight);
+    auto selectorArea = footer.removeFromRight(
+        reviewSelectorWidth(isCompact(), isWide()));
+    scenarioSelector_.setBounds(selectorArea.reduced(0, 3));
+    menuButton_.setVisible(isCompact());
+    if (isCompact())
+        menuButton_.setBounds(footer.removeFromLeft(compactMenuWidth).reduced(0, 3));
+    else
+        menuButton_.setBounds({});
     bounds.removeFromBottom(46);
 
     if (!isCompact()) {
@@ -549,12 +748,25 @@ bool PreviewComponent::keyPressed(const juce::KeyPress& key)
     }
 
     if (key == juce::KeyPress::F1Key) {
-        setTransientStatus("Context help: " + juce::String(scenario_ != nullptr ? scenario_->journey : ""));
+        handleShellAction(ui::ShellAction::help);
+        return true;
+    }
+
+    if (key.getModifiers().isCtrlDown() && key.getKeyCode() == 'P') {
+        suiteShell_.showPresetMenu();
+        return true;
+    }
+
+    if (key.getModifiers().isCtrlDown() && key.getKeyCode() == 'S') {
+        handleShellAction(ui::ShellAction::savePreset);
         return true;
     }
 
     if (key.getModifiers().isCtrlDown() && key.getKeyCode() == 'Z') {
-        setTransientStatus(key.getModifiers().isShiftDown() ? "Redo preview" : "Undo preview");
+        handleShellAction(
+            key.getModifiers().isShiftDown()
+                ? ui::ShellAction::redo
+                : ui::ShellAction::undo);
         return true;
     }
 

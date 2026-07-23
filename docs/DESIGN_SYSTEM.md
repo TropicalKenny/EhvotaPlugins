@@ -174,3 +174,13 @@ Global host conflicts must be tested in FL Studio. A shortcut that the host inte
 ## Shared shell
 
 Every plugin shell reserves consistent locations for identity, presets, undo/redo, A/B, bypass, help, scaling, output meter where relevant, link status where relevant, and warnings. Smaller plugins may collapse labels but must preserve semantics and keyboard access.
+
+The implemented `SuiteShell` uses three density levels:
+
+- **Compact:** identity, preset, A/B, applicable processing/monitor control, Help, scale, status, and meter remain visible; preset navigation, Save, Undo, and Redo move into a labelled **More** menu.
+- **Standard:** Undo and Redo return to the primary row; preset navigation and Save remain in **More**.
+- **Wide:** every shell action is visible in the primary row and the overflow button disappears.
+
+Controls move to overflow only by width policy; they are never removed from keyboard access. Product capabilities control whether a processing action or meter exists. Render Safe may lock monitoring off, and that locked state must remain visibly disabled.
+
+During Phase 1, preset selection, undo/redo, A/B, processing state, and scale are deterministic UI interactions only. Status text explicitly says when no file, project, host, or DSP state is changed.

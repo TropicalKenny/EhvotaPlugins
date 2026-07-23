@@ -32,6 +32,8 @@ Required:
 
 The shell must show Render Safe state in RefHub and any processor where monitoring-only paths exist.
 
+The production `SuiteShell` source now implements responsive compact/standard/wide action placement, labelled overflow, product-capability controls, accessible status detail, and an output-level indicator. The preview wires deterministic preset, undo/redo, A/B, processing/monitor, Help, and scale interactions. Render Safe locks monitoring off. Windows layout, focus-order, Narrator, and host-shortcut evidence remain pending.
+
 ## Preview journey replay
 
 The standalone Phase 1 preview exposes a non-production review strip for each of the eight primary journeys:

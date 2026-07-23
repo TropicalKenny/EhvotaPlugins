@@ -2,12 +2,14 @@
 
 #include "JourneyProgressComponent.h"
 #include "shared/ui/Components.h"
+#include "shared/ui/SuiteShell.h"
 #include "shared/viewmodels/JourneyReplay.h"
 #include "shared/viewmodels/PreviewScenario.h"
 
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -30,11 +32,15 @@ private:
     void rebuildScenarioComponents();
     void updateNavigation();
     void updateJourneyReplay();
+    void updateShellPresentation();
+    void handleShellAction(ui::ShellAction action);
+    void moveShellPreset(bool forward);
     void moveJourneyStep(bool forward);
     void setTransientStatus(juce::String status);
     [[nodiscard]] bool isCompact() const;
     [[nodiscard]] bool isWide() const;
 
+    ui::SuiteShell suiteShell_;
     juce::ComboBox scenarioSelector_;
     juce::Label comparisonContextLabel_;
     juce::TextButton menuButton_ { "VIEW" };
@@ -63,6 +69,13 @@ private:
     const preview::Scenario* scenario_ { nullptr };
     preview::JourneyReplay journeyReplay_;
     int scenarioIndex_ { 0 };
+    int shellScalePercent_ { 100 };
+    bool shellComparisonB_ {};
+    bool shellProcessingActive_ { true };
+    bool shellCanUndo_ {};
+    bool shellCanRedo_ {};
+    std::string shellDefaultPresetName_ { "Default" };
+    std::string shellPresetName_ { "Default" };
     juce::String transientStatus_ { "Deterministic preview data · No audio is processed" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PreviewComponent)

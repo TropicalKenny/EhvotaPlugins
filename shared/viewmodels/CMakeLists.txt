@@ -5,6 +5,8 @@ add_library(EhvotaViewModels STATIC
     LayoutPolicy.h
     PreviewScenario.cpp
     PreviewScenario.h
+    ShellPresentation.cpp
+    ShellPresentation.h
 )
 
 target_include_directories(EhvotaViewModels

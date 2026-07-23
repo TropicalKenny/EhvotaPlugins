@@ -3,11 +3,13 @@
 #include "shared/viewmodels/JourneyReplay.h"
 #include "shared/viewmodels/LayoutPolicy.h"
 #include "shared/viewmodels/PreviewScenario.h"
+#include "shared/viewmodels/ShellPresentation.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -187,6 +189,57 @@ void testLayoutPolicy()
     expect(rejectedInvalidWidth, "non-positive logical width must be rejected");
 }
 
+void testShellPresentation()
+{
+    using ehvota::preview::ShellDensity;
+    using ehvota::preview::ShellPresentation;
+    using ehvota::preview::classifyShellDensity;
+    using ehvota::preview::validateShellPresentation;
+
+    expect(classifyShellDensity(696) == ShellDensity::compact,
+           "minimum preview content width must use compact shell overflow");
+    expect(classifyShellDensity(819) == ShellDensity::compact,
+           "819 logical pixels must remain compact shell density");
+    expect(classifyShellDensity(820) == ShellDensity::standard,
+           "820 logical pixels must enter standard shell density");
+    expect(classifyShellDensity(1'119) == ShellDensity::standard,
+           "1119 logical pixels must remain standard shell density");
+    expect(classifyShellDensity(1'120) == ShellDensity::wide,
+           "1120 logical pixels must expose the complete shell action row");
+
+    bool rejectedInvalidWidth = false;
+    try {
+        static_cast<void>(classifyShellDensity(0));
+    }
+    catch (const std::invalid_argument&) {
+        rejectedInvalidWidth = true;
+    }
+    expect(rejectedInvalidWidth, "non-positive shell width must be rejected");
+
+    ShellPresentation valid {
+        .productName = "REFHUB",
+        .presetName = "Ayo Nights",
+        .processingActionLabel = "MONITOR",
+        .statusText = "LINKS LOCAL",
+        .statusDetail = "Same-process preview.",
+        .showProcessingAction = true,
+        .showOutputMeter = true,
+        .scalePercent = 125,
+        .outputLevelDb = -8.4
+    };
+    expect(validateShellPresentation(valid).empty(),
+           "complete shell presentation must validate");
+
+    auto invalid = valid;
+    invalid.productName.clear();
+    invalid.processingActionLabel.clear();
+    invalid.statusText.clear();
+    invalid.scalePercent = 110;
+    invalid.outputLevelDb = std::numeric_limits<double>::infinity();
+    expect(validateShellPresentation(invalid).size() == 5,
+           "invalid shell presentation must report every independent contract failure");
+}
+
 } // namespace
 
 int main()
@@ -196,6 +249,7 @@ int main()
     testRefTimeCalculation();
     testDesignTokenContrast();
     testLayoutPolicy();
+    testShellPresentation();
 
     if (failures != 0) {
         std::cerr << failures << " test assertion(s) failed.\n";

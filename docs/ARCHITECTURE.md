@@ -44,14 +44,18 @@ shared/ui/
   Theme.*
   EhvotaLookAndFeel.*
   Components.*
+  SuiteShell.*
 
 shared/viewmodels/
   PreviewScenario.*
   JourneyReplay.*
   LayoutPolicy.*
+  ShellPresentation.*
 ```
 
 The preview consumes the same `shared/ui` components and contracts intended for plugin editors. Mock data belongs in scenario fixtures, never embedded in drawing code. Preview-only review controls, including the scenario selector and guided journey strip, stay under `apps/ui-preview` and do not become production plugin-shell APIs.
+
+`SuiteShell` is production UI. It renders only a validated semantic `ShellPresentation`; preview-only mutation and status text remain owned by `PreviewComponent`. Preset persistence, undo history, processor bypass, and saved interface scale are later application/state responsibilities, not hidden inside the visual component.
 
 ## Planned internal modules
 

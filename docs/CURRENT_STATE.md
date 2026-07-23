@@ -45,6 +45,7 @@ Consequences:
 - The preview accepts validated deterministic scenario and logical-size launch options for repeatable review.
 - A dependency-free journey catalogue now covers all eight required workflows. The preview-only JUCE journey strip exposes labelled Back/Next controls, boundary states, `Ctrl+Alt+Left` / `Ctrl+Alt+Right`, and deterministic `--step` launch selection. Portable catalogue/navigation tests pass; rendered Windows exercise remains pending.
 - The persistent comparison context is now a labelled accessible component with the complete value retained in its tooltip and accessibility description instead of paint-only text.
+- A reusable production `SuiteShell` now presents identity, presets, previous/next/save, undo/redo, A/B, applicable monitor/bypass state, Help, scale, link/warning status, and an output meter. A tested width policy keeps all actions visible or in a labelled overflow menu; preview interactions are explicitly non-persistent and Render Safe locks monitoring off.
 - `tools/capture-ui-review.ps1` defines a native Windows capture matrix that verifies per-window DPI, rejects clipped/occluded windows, and records hashes and build metadata. The script remains unexecuted because PowerShell and Windows are unavailable on this host.
 - JUCE pinning and UI-hardening commit: `8eb7763` (`feat: pin JUCE and harden UI preview`).
 
