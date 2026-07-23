@@ -128,4 +128,10 @@ Recovery states: missing model, licence error, GPU fallback to CPU, insufficient
 
 ## Prototype navigation
 
-The preview includes a scenario selector separate from the production UI. It can jump to any step/state deterministically for review and screenshot capture. This selector must not leak into plugin interfaces or product state.
+The preview includes a scenario selector separate from the production UI. It can jump to any required state deterministically for review and screenshot capture. This selector must not leak into plugin interfaces or product state.
+
+Each of the eight primary scenario fixtures also exposes a guided journey strip. **Back** and **Next** replay the documented steps without audio processing or external state changes; `Ctrl+Alt+Left` and `Ctrl+Alt+Right` provide the keyboard equivalent. Step labels and instructions are part of a dependency-free, validated view model rather than UI-only text.
+
+For deterministic launch and capture, the preview accepts a one-based `--step=<n>` option after a primary journey scenario is selected. Required-state fixtures intentionally reject `--step` because they are evidence states, not primary journeys.
+
+The journey strip is a review aid, not proof that downstream audio, file, host, or model behaviour exists. Windows interaction review must still verify that every step is readable and operable before the journeys are marked demonstrated.

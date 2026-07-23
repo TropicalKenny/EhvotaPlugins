@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Phase 1 boundaries proposed; implementation pending.
+Status: Phase 1 foundation implemented; Windows build and rendered verification pending.
 
 ## Product boundary
 
@@ -36,27 +36,22 @@ Rules:
 ```text
 apps/ui-preview/
   Main.cpp
-  PreviewApplication.*
-  PreviewWindow.*
-  PreviewScenarioController.*
+  PreviewComponent.*
+  JourneyProgressComponent.*
 
 shared/ui/
-  tokens/
-  components/
-  layout/
-  accessibility/
-  graphs/
-  shell/
+  DesignTokenValues.*
+  Theme.*
+  EhvotaLookAndFeel.*
+  Components.*
 
 shared/viewmodels/
-  CommonViewModels.*
-  RefHubViewModel.*
-  StemPrepViewModel.*
-  ProcessorViewModels.*
-  PreviewScenarios.*
+  PreviewScenario.*
+  JourneyReplay.*
+  LayoutPolicy.*
 ```
 
-The preview must consume the same `shared/ui` components and contracts intended for plugin editors. Mock data belongs in scenario fixtures, never embedded in drawing code.
+The preview consumes the same `shared/ui` components and contracts intended for plugin editors. Mock data belongs in scenario fixtures, never embedded in drawing code. Preview-only review controls, including the scenario selector and guided journey strip, stay under `apps/ui-preview` and do not become production plugin-shell APIs.
 
 ## Planned internal modules
 

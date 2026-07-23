@@ -22,13 +22,15 @@ struct LaunchOptions {
     juce::String scenarioId { "reference-ready" };
     int contentWidth { defaultWidth };
     int contentHeight { defaultHeight };
+    std::optional<int> journeyStep;
 };
 
-std::optional<int> parseDimension(
+std::optional<int> parseBoundedInteger(
     const juce::ArgumentList& arguments,
     const juce::String& option,
     const int minimum,
     const int maximum,
+    const juce::String& units,
     juce::String& error)
 {
     if (!arguments.containsOption(option))
@@ -43,7 +45,9 @@ std::optional<int> parseDimension(
     const auto parsed = value.getIntValue();
     if (parsed < minimum || parsed > maximum) {
         error = option + " must be between " + juce::String(minimum)
-            + " and " + juce::String(maximum) + " logical pixels.";
+            + " and " + juce::String(maximum)
+            + (units.isNotEmpty() ? " " + units : juce::String {})
+            + ".";
         return std::nullopt;
     }
 
@@ -60,7 +64,8 @@ std::optional<LaunchOptions> parseLaunchOptions(
         const auto argument = arguments[index];
         if (!argument.isLongOption("--scenario")
             && !argument.isLongOption("--width")
-            && !argument.isLongOption("--height")) {
+            && !argument.isLongOption("--height")
+            && !argument.isLongOption("--step")) {
             error = "Unknown option: " + argument.text;
             return std::nullopt;
         }
@@ -76,19 +81,26 @@ std::optional<LaunchOptions> parseLaunchOptions(
     }
 
     if (arguments.containsOption("--width")) {
-        const auto width = parseDimension(
-            arguments, "--width", minimumWidth, maximumWidth, error);
+        const auto width = parseBoundedInteger(
+            arguments, "--width", minimumWidth, maximumWidth, "logical pixels", error);
         if (!width.has_value())
             return std::nullopt;
         options.contentWidth = *width;
     }
 
     if (arguments.containsOption("--height")) {
-        const auto height = parseDimension(
-            arguments, "--height", minimumHeight, maximumHeight, error);
+        const auto height = parseBoundedInteger(
+            arguments, "--height", minimumHeight, maximumHeight, "logical pixels", error);
         if (!height.has_value())
             return std::nullopt;
         options.contentHeight = *height;
+    }
+
+    if (arguments.containsOption("--step")) {
+        const auto step = parseBoundedInteger(arguments, "--step", 1, 32, "steps", error);
+        if (!step.has_value())
+            return std::nullopt;
+        options.journeyStep = *step;
     }
 
     return options;
@@ -110,6 +122,13 @@ public:
         content->setSize(options.contentWidth, options.contentHeight);
         if (!content->selectScenarioById(options.scenarioId.toStdString()))
             throw std::invalid_argument("Unknown preview scenario: " + options.scenarioId.toStdString());
+        if (options.journeyStep.has_value()
+            && !content->selectJourneyStep(static_cast<std::size_t>(*options.journeyStep))) {
+            throw std::invalid_argument(
+                "Journey step is unavailable for scenario "
+                + options.scenarioId.toStdString() + ": "
+                + std::to_string(*options.journeyStep));
+        }
 
         preview_ = content.get();
         setContentOwned(content.release(), true);

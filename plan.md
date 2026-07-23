@@ -190,6 +190,7 @@ Acceptance criteria:
 - [x] Create deterministic mock/replay view models for all eight journeys and required low-confidence/render-safe/missing-model states.
 - [ ] Build Ehvota UI Preview using those shared components. Target/source exists; no JUCE/Windows build evidence yet.
 - [ ] Demonstrate every required screen and journey.
+  All eight guided journey catalogues, preview replay UI, keyboard navigation, and deterministic step launch selection now exist and pass portable tests; Windows rendering and human exercise remain pending.
 - [x] Add initial meaningful model/timing/token tests and replay states. Portable suite passed on 2026-07-23.
 - [ ] Run Windows builds and tests.
 - [ ] Verify continuous resize, DPI, keyboard, long labels, accessibility basics, and major states.
@@ -386,6 +387,9 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 - Windows/JUCE compilation, rendered UI, DPI/accessibility, FL Studio, installer, and signing remain unverified.
 - Added validated preview command-line selection for deterministic scenario and logical content size.
 - Added `tools/capture-ui-review.ps1`, which captures the actual foreground Windows window, verifies per-window DPI, rejects clipping, and records a manifest with hashes. Its `Dpi`, `Core`, and `Full` matrices remain unexecuted on this Linux host.
+- Added a validated, dependency-free step catalogue for all eight primary journeys and a preview-only JUCE replay strip with labelled Back/Next controls, keyboard navigation, and deterministic `--step` launch selection.
+- Extended Windows capture preparation with a `Journeys` matrix for every replay step. The PowerShell path remains unexecuted on this Linux host.
+- Re-ran the portable build and tests after journey replay integration: 1/1 CTest target passed. A warnings-enabled C++20 compile-only check also passed for the new journey model, preview-only component, shared UI, and preview application sources.
 
 ## Unresolved questions
 

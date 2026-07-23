@@ -1,5 +1,6 @@
 #include "shared/timing/RefTimeMath.h"
 #include "shared/ui/DesignTokenValues.h"
+#include "shared/viewmodels/JourneyReplay.h"
 #include "shared/viewmodels/LayoutPolicy.h"
 #include "shared/viewmodels/PreviewScenario.h"
 
@@ -37,6 +38,49 @@ void testScenarioCatalogue()
            "render-safe fixture must exist");
     expect(ehvota::preview::findScenario("not-a-scenario") == nullptr,
            "unknown fixture must not resolve");
+}
+
+void testJourneyReplay()
+{
+    const auto errors = ehvota::preview::validateJourneyCatalogue();
+    for (const auto& error : errors)
+        std::cerr << "JOURNEY: " << error << '\n';
+
+    expect(errors.empty(), "journey replay catalogue must be valid");
+    expect(ehvota::preview::allJourneys().size() == 8,
+           "journey replay must cover exactly the eight required primary journeys");
+
+    ehvota::preview::JourneyReplay replay;
+    expect(replay.currentStep() == nullptr,
+           "journey replay must begin without an active journey");
+    expect(!replay.selectForScenario("not-a-scenario"),
+           "unknown scenarios must not select a journey");
+    expect(replay.selectForScenario("compare-chorus"),
+           "full-mix comparison scenario must select Journey 2");
+    expect(replay.currentStepNumber() == 1,
+           "selecting a journey must reset it to the first step");
+    expect(replay.totalSteps() == 7,
+           "Journey 2 must retain its complete seven-step replay");
+    expect(std::abs(replay.progress() - (1.0 / 7.0)) < 1.0e-12,
+           "first Journey 2 step must report one-seventh progress");
+    expect(!replay.canGoPrevious() && replay.canGoNext(),
+           "first replay step must disable Back and enable Next");
+    expect(!replay.previous(),
+           "replay must not move before its first step");
+    expect(replay.next() && replay.currentStepNumber() == 2,
+           "Next must advance exactly one journey step");
+    expect(replay.setStepNumber(7),
+           "deterministic step selection must accept Journey 2's last step");
+    expect(!replay.canGoNext() && replay.canGoPrevious(),
+           "last replay step must disable Next and enable Back");
+    expect(!replay.next(),
+           "replay must not move beyond its final step");
+    expect(!replay.setStepNumber(0) && !replay.setStepNumber(8),
+           "deterministic step selection must reject out-of-range steps");
+    expect(!replay.selectForScenario("render-safe"),
+           "required state fixtures must not masquerade as primary journeys");
+    expect(replay.currentStep() == nullptr && replay.totalSteps() == 0,
+           "selecting a non-journey fixture must clear journey replay state");
 }
 
 void testRefTimeCalculation()
@@ -142,6 +186,7 @@ void testLayoutPolicy()
 int main()
 {
     testScenarioCatalogue();
+    testJourneyReplay();
     testRefTimeCalculation();
     testDesignTokenContrast();
     testLayoutPolicy();

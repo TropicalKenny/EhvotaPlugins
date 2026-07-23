@@ -32,6 +32,19 @@ Required:
 
 The shell must show Render Safe state in RefHub and any processor where monitoring-only paths exist.
 
+## Preview journey replay
+
+The standalone Phase 1 preview exposes a non-production review strip for each of the eight primary journeys:
+
+- journey and step identity are always visible;
+- Back and Next have labelled buttons and `Ctrl+Alt+Left` / `Ctrl+Alt+Right` equivalents;
+- boundary actions disable instead of wrapping silently;
+- selecting a primary scenario resets its journey to Step 1;
+- required-state scenarios hide the journey strip rather than implying that they are complete workflows;
+- `--scenario=<id> --step=<n>` selects a deterministic review state at launch.
+
+This strip validates the interaction contract and documented sequence. It does not claim that audio, filesystem, model, plugin-link, clipboard, or host side effects are implemented during Phase 1.
+
 ## State model
 
 Every data-bearing module exposes:
@@ -137,6 +150,7 @@ These are budgets, not current claims. Record hardware, Windows build, display s
 ## Acceptance checklist
 
 - [ ] All eight journeys are replayable from deterministic scenarios.
+  The eight validated step catalogues, navigation source, and deterministic launch option exist; rendered Windows exercise remains pending.
 - [ ] Empty, loading, offline, error, degraded, stale, render, bridged/unsupported, high-CPU, missing-model, licence-error, cancellation, and repair states exist where relevant.
 - [ ] Minimum/default/wide layouts work without overlap or unreachable controls.
 - [ ] 100%, 125%, 150%, 175%, and 200% Windows scaling evidence exists.

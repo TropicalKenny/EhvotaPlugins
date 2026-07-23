@@ -53,7 +53,8 @@ PreviewComponent::PreviewComponent()
     };
 
     for (auto* button : { &menuButton_, &mixButton_, &referenceButton_, &loudnessMatchButton_,
-             &captureButton_, &blindButton_, &primaryActionButton_, &secondaryActionButton_ }) {
+             &captureButton_, &blindButton_, &primaryActionButton_, &secondaryActionButton_,
+             &journeyBackButton_, &journeyNextButton_ }) {
         addAndMakeVisible(*button);
         button->setWantsKeyboardFocus(true);
     }
@@ -94,6 +95,8 @@ PreviewComponent::PreviewComponent()
     loudnessMatchButton_.setTooltip("Toggle audition-only loudness matching.");
     captureButton_.setTooltip("Start or inspect Capture Analysis.");
     blindButton_.setTooltip("Begin a blind comparison.");
+    journeyBackButton_.setTooltip("Show the previous deterministic journey step. Ctrl+Alt+Left.");
+    journeyNextButton_.setTooltip("Show the next deterministic journey step. Ctrl+Alt+Right.");
 
     mixButton_.onClick = [this] {
         referenceButton_.setToggleState(false, juce::dontSendNotification);
@@ -113,11 +116,16 @@ PreviewComponent::PreviewComponent()
     blindButton_.onClick = [this] { setTransientStatus("Blind comparison previewed"); };
     primaryActionButton_.onClick = [this] { setTransientStatus(primaryActionButton_.getButtonText() + " action previewed"); };
     secondaryActionButton_.onClick = [this] { setTransientStatus(secondaryActionButton_.getButtonText() + " action previewed"); };
+    journeyBackButton_.onClick = [this] { moveJourneyStep(false); };
+    journeyNextButton_.onClick = [this] { moveJourneyStep(true); };
 
     addAndMakeVisible(signalGraph_);
     addAndMakeVisible(timingReadout_);
     addAndMakeVisible(progressTimeline_);
+    addAndMakeVisible(journeyProgress_);
     addAndMakeVisible(panelsViewport_);
+    journeyBackButton_.toFront(false);
+    journeyNextButton_.toFront(false);
     panelsViewport_.setViewedComponent(&panelsContent_, false);
     panelsViewport_.setScrollBarsShown(true, false);
     panelsViewport_.setTitle("Scenario details");
@@ -143,6 +151,15 @@ bool PreviewComponent::selectScenarioById(const std::string_view scenarioId)
     return scenario_ == &*match;
 }
 
+bool PreviewComponent::selectJourneyStep(const std::size_t oneBasedStep)
+{
+    if (!journeyReplay_.setStepNumber(oneBasedStep))
+        return false;
+
+    updateJourneyReplay();
+    return true;
+}
+
 void PreviewComponent::loadScenario(const int scenarioIndex)
 {
     const auto& scenarios = preview::allScenarios();
@@ -152,6 +169,7 @@ void PreviewComponent::loadScenario(const int scenarioIndex)
     scenarioIndex_ = juce::jlimit(0, static_cast<int>(scenarios.size() - 1), scenarioIndex);
     scenario_ = &scenarios[static_cast<std::size_t>(scenarioIndex_)];
     signalGraph_.setScenario(scenario_->id);
+    static_cast<void>(journeyReplay_.selectForScenario(scenario_->id));
     transientStatus_ = "Deterministic preview data · No audio is processed";
 
     if (scenario_->id == "proposal-review") {
@@ -199,6 +217,7 @@ void PreviewComponent::loadScenario(const int scenarioIndex)
 
     rebuildScenarioComponents();
     updateNavigation();
+    updateJourneyReplay();
     resized();
     repaint();
 }
@@ -254,6 +273,44 @@ void PreviewComponent::updateNavigation()
         addAndMakeVisible(*button);
         navigationButtons_.push_back(std::move(button));
     }
+}
+
+void PreviewComponent::updateJourneyReplay()
+{
+    const auto* journey = journeyReplay_.journey();
+    const auto* step = journeyReplay_.currentStep();
+    const auto isAvailable = journey != nullptr && step != nullptr;
+
+    journeyProgress_.setVisible(isAvailable);
+    journeyBackButton_.setVisible(isAvailable);
+    journeyNextButton_.setVisible(isAvailable);
+
+    if (!isAvailable)
+        return;
+
+    journeyProgress_.setStep(
+        journey->number,
+        juce::String(journey->title),
+        static_cast<int>(journeyReplay_.currentStepNumber()),
+        static_cast<int>(journeyReplay_.totalSteps()),
+        juce::String(step->title),
+        juce::String(step->instruction));
+    journeyBackButton_.setEnabled(journeyReplay_.canGoPrevious());
+    journeyNextButton_.setEnabled(journeyReplay_.canGoNext());
+}
+
+void PreviewComponent::moveJourneyStep(const bool forward)
+{
+    const auto moved = forward ? journeyReplay_.next() : journeyReplay_.previous();
+    if (!moved)
+        return;
+
+    updateJourneyReplay();
+    const auto* step = journeyReplay_.currentStep();
+    setTransientStatus(
+        "Journey replay · Step " + juce::String(static_cast<int>(journeyReplay_.currentStepNumber()))
+        + " of " + juce::String(static_cast<int>(journeyReplay_.totalSteps()))
+        + (step != nullptr ? " · " + juce::String(step->title) : juce::String {}));
 }
 
 void PreviewComponent::paint(juce::Graphics& graphics)
@@ -396,6 +453,21 @@ void PreviewComponent::resized()
         bounds.removeFromRight(246 + 12);
 
     bounds.removeFromTop(72);
+    if (journeyProgress_.isVisible()) {
+        auto journeyRow = bounds.removeFromTop(68);
+        journeyProgress_.setBounds(journeyRow);
+
+        auto journeyControls = journeyRow.removeFromRight(150).reduced(8, 16);
+        journeyBackButton_.setBounds(journeyControls.removeFromLeft(64));
+        journeyControls.removeFromLeft(6);
+        journeyNextButton_.setBounds(journeyControls);
+        bounds.removeFromTop(10);
+    }
+    else {
+        journeyProgress_.setBounds({});
+        journeyBackButton_.setBounds({});
+        journeyNextButton_.setBounds({});
+    }
 
     auto badgeRow = bounds.removeFromTop(28);
     for (auto& badge : badges_) {
@@ -455,6 +527,20 @@ void PreviewComponent::resized()
 
 bool PreviewComponent::keyPressed(const juce::KeyPress& key)
 {
+    if (key.getModifiers().isAltDown()
+        && key.getModifiers().isCtrlDown()
+        && key.getKeyCode() == juce::KeyPress::leftKey) {
+        moveJourneyStep(false);
+        return true;
+    }
+
+    if (key.getModifiers().isAltDown()
+        && key.getModifiers().isCtrlDown()
+        && key.getKeyCode() == juce::KeyPress::rightKey) {
+        moveJourneyStep(true);
+        return true;
+    }
+
     if (key == juce::KeyPress::F1Key) {
         setTransientStatus("Context help: " + juce::String(scenario_ != nullptr ? scenario_->journey : ""));
         return true;

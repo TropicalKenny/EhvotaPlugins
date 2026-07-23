@@ -156,6 +156,7 @@ Use for mutually exclusive modes such as Mix/Reference or Delayed Only/Dry + Del
 | Fine adjustment | Shift + drag/wheel |
 | Reset focused control | Ctrl+Backspace |
 | Toggle contextual help | F1 |
+| Previous/next deterministic journey step (preview only) | Ctrl+Alt+Left / Ctrl+Alt+Right |
 | Previous/next selected band or division | Alt+Left / Alt+Right |
 
 Global host conflicts must be tested in FL Studio. A shortcut that the host intercepts must have an accessible in-UI equivalent.

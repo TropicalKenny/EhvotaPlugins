@@ -1,4 +1,6 @@
 add_library(EhvotaViewModels STATIC
+    JourneyReplay.cpp
+    JourneyReplay.h
     LayoutPolicy.cpp
     LayoutPolicy.h
     PreviewScenario.cpp

@@ -7,7 +7,7 @@ param(
     [ValidateSet(100, 125, 150, 175, 200)]
     [int] $ExpectedScalePercent,
 
-    [ValidateSet('Dpi', 'Core', 'Full')]
+    [ValidateSet('Dpi', 'Journeys', 'Core', 'Full')]
     [string] $Matrix = 'Dpi',
 
     [string] $OutputRoot = 'generated\ui-review'
@@ -71,7 +71,8 @@ function New-CaptureItem {
         [string] $Scenario,
         [string] $Layout,
         [int] $Width,
-        [int] $Height
+        [int] $Height,
+        [int] $Step = 0
     )
 
     [pscustomobject]@{
@@ -79,6 +80,7 @@ function New-CaptureItem {
         layout   = $Layout
         width    = $Width
         height   = $Height
+        step     = $Step
     }
 }
 
@@ -115,6 +117,25 @@ if ($Matrix -eq 'Dpi') {
         (New-CaptureItem 'reftime-120' 'compact-minimum' 720 500),
         (New-CaptureItem 'stem-prep-queue' 'compact-minimum' 720 500)
     )
+}
+elseif ($Matrix -eq 'Journeys') {
+    $journeyStepCounts = [ordered]@{
+        'reference-ready'       = 7
+        'compare-chorus'        = 7
+        'mapping-disconnected'  = 7
+        'components-no-drums'   = 6
+        'capture-running'       = 6
+        'proposal-review'       = 8
+        'reftime-120'           = 8
+        'stem-prep-queue'       = 10
+    }
+
+    $captures = @()
+    foreach ($scenario in $journeyStepCounts.Keys) {
+        for ($step = 1; $step -le $journeyStepCounts[$scenario]; $step++) {
+            $captures += New-CaptureItem $scenario 'standard' 1180 760 $step
+        }
+    }
 }
 else {
     $captures = @()
@@ -161,6 +182,9 @@ try {
                 "--width=$($capture.width)",
                 "--height=$($capture.height)"
             )
+            if ($capture.step -gt 0) {
+                $arguments += "--step=$($capture.step)"
+            }
             $process = Start-Process `
                 -FilePath $executableFile.FullName `
                 -ArgumentList $arguments `
@@ -225,8 +249,15 @@ try {
                 throw 'The preview window does not fit fully within the Windows virtual desktop. Use the Dpi matrix, a higher-resolution display, or a lower display scale; clipped screenshots are rejected.'
             }
 
-            $fileName = '{0}-{1}-{2}x{3}-{4}pct.png' -f `
-                $capture.scenario, $capture.layout, $capture.width, $capture.height, $scalePercent
+            $stepSuffix = if ($capture.step -gt 0) {
+                '-step{0:D2}' -f $capture.step
+            }
+            else {
+                ''
+            }
+            $fileName = '{0}{1}-{2}-{3}x{4}-{5}pct.png' -f `
+                $capture.scenario, $stepSuffix, $capture.layout, `
+                $capture.width, $capture.height, $scalePercent
             $outputPath = Join-Path $sessionDirectory $fileName
             $bitmap = New-Object System.Drawing.Bitmap $pixelWidth, $pixelHeight
             $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
@@ -245,8 +276,14 @@ try {
                 $bitmap.Dispose()
             }
 
+            $recordedJourneyStep = $null
+            if ($capture.step -gt 0) {
+                $recordedJourneyStep = $capture.step
+            }
+
             $records += [pscustomobject]@{
                 scenario          = $capture.scenario
+                journeyStep       = $recordedJourneyStep
                 layout            = $capture.layout
                 logicalContent    = [pscustomobject]@{
                     width  = $capture.width
@@ -280,7 +317,7 @@ finally {
 
 $os = Get-CimInstance Win32_OperatingSystem
 $manifest = [ordered]@{
-    schemaVersion        = 1
+    schemaVersion        = 2
     capturedAt           = (Get-Date).ToUniversalTime().ToString('o')
     matrix               = $Matrix
     expectedScalePercent = $ExpectedScalePercent
