@@ -381,6 +381,7 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 - Expanded deterministic fixtures to cover every mandatory UI validation state and added tested compact/standard/wide breakpoint policy.
 - The initial tag-as-branch submodule command failed after cloning an empty worktree. Changed method: fetched the verified tag directly, checked out its exact commit, registered the gitlink, and confirmed `git submodule status` reports JUCE 8.0.9.
 - Fixed JUCE string-boundary compile errors found by the first compile-only check; the second check and a warnings-enabled repeat passed.
+- Committed the accepted JUCE pin, complete mandatory state catalogue, responsive/scrolling hardening, product-specific hero components, accessibility metadata, Windows audit fixes, and documentation as `8eb7763` (`feat: pin JUCE and harden UI preview`).
 - Windows/JUCE compilation, rendered UI, DPI/accessibility, FL Studio, installer, and signing remain unverified.
 
 ## Unresolved questions

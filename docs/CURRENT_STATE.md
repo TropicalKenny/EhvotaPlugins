@@ -42,6 +42,7 @@ Consequences:
 - The deterministic scenario catalogue now covers all mandatory UI validation states, including empty/missing/invalid reference states, capture failure, proposal applied, unsupported bridge, high CPU, model licence failure, safe cancellation, and installer repair.
 - Responsive breakpoints are implemented in a dependency-free layout policy with boundary tests.
 - A compile-only C++20 check against the pinned JUCE headers passed for all shared UI and preview translation units with `-Wall -Wextra -Wpedantic`. This proves source/API syntax on the current compiler only; it is not a linked executable or Windows evidence.
+- JUCE pinning and UI-hardening commit: `8eb7763` (`feat: pin JUCE and harden UI preview`).
 
 ## Active work
 
