@@ -1,6 +1,7 @@
 #include "PreviewComponent.h"
 
 #include "shared/ui/Theme.h"
+#include "shared/viewmodels/LayoutPolicy.h"
 
 #include <array>
 
@@ -51,11 +52,36 @@ PreviewComponent::PreviewComponent()
         loadScenario(scenarioSelector_.getSelectedItemIndex());
     };
 
-    for (auto* button : { &mixButton_, &referenceButton_, &loudnessMatchButton_,
+    for (auto* button : { &menuButton_, &mixButton_, &referenceButton_, &loudnessMatchButton_,
              &captureButton_, &blindButton_, &primaryActionButton_, &secondaryActionButton_ }) {
         addAndMakeVisible(*button);
         button->setWantsKeyboardFocus(true);
     }
+
+    menuButton_.setTooltip("Open the labelled view menu.");
+    menuButton_.onClick = [this] {
+        juce::PopupMenu menu;
+        for (std::size_t index = 0; index < currentViewNames_.size(); ++index) {
+            const auto itemId = static_cast<int>(index + 1);
+            menu.addItem(
+                itemId,
+                currentViewNames_[index],
+                true,
+                scenario_ != nullptr
+                    && currentViewNames_[index] == juce::String(scenario_->activeView));
+        }
+
+        const juce::Component::SafePointer<PreviewComponent> safeThis(this);
+        menu.showMenuAsync(
+            juce::PopupMenu::Options().withTargetComponent(&menuButton_),
+            [safeThis](const int result) {
+                if (safeThis == nullptr || result <= 0)
+                    return;
+                const auto index = static_cast<std::size_t>(result - 1);
+                if (index < safeThis->currentViewNames_.size())
+                    safeThis->setTransientStatus("Navigation preview: " + safeThis->currentViewNames_[index]);
+            });
+    };
 
     mixButton_.setClickingTogglesState(true);
     referenceButton_.setClickingTogglesState(true);
@@ -89,6 +115,13 @@ PreviewComponent::PreviewComponent()
     secondaryActionButton_.onClick = [this] { setTransientStatus(secondaryActionButton_.getButtonText() + " action previewed"); };
 
     addAndMakeVisible(signalGraph_);
+    addAndMakeVisible(timingReadout_);
+    addAndMakeVisible(progressTimeline_);
+    addAndMakeVisible(panelsViewport_);
+    panelsViewport_.setViewedComponent(&panelsContent_, false);
+    panelsViewport_.setScrollBarsShown(true, false);
+    panelsViewport_.setTitle("Scenario details");
+    panelsViewport_.setDescription("Scrollable measurement and state panels for the selected deterministic scenario.");
     scenarioSelector_.setSelectedId(1, juce::sendNotificationSync);
 }
 
@@ -124,12 +157,27 @@ void PreviewComponent::loadScenario(const int scenarioIndex)
         secondaryActionButton_.setButtonText("DETAILS");
     }
 
-    const auto refHub = scenario_->area == preview::ProductArea::refHub;
-    mixButton_.setVisible(refHub);
-    referenceButton_.setVisible(refHub);
-    loudnessMatchButton_.setVisible(refHub);
-    captureButton_.setVisible(refHub);
-    blindButton_.setVisible(refHub);
+    menuButton_.setButtonText("VIEW · " + juce::String(scenario_->activeView));
+
+    if (scenario_->area == preview::ProductArea::refTime && !scenario_->panels.empty()) {
+        const auto& timingPanel = scenario_->panels.front();
+        juce::String secondary;
+        for (const auto& metric : timingPanel.metrics) {
+            if (secondary.isNotEmpty())
+                secondary += " · ";
+            secondary += juce::String(metric.label) + " " + juce::String(metric.value);
+        }
+        timingReadout_.setValues(juce::String(timingPanel.summary), secondary);
+    }
+
+    if (scenario_->area == preview::ProductArea::stemPrep) {
+        if (scenario_->id == "stem-prep-queue")
+            progressTimeline_.setState("Ayo Nights", "Separating locally", 0.62);
+        else if (scenario_->id == "stem-prep-cancelled")
+            progressTimeline_.setState("River Glass", "Cancelled safely", 0.0);
+        else
+            progressTimeline_.setState(juce::String(scenario_->title), "Blocked · local repair required", 0.0);
+    }
 
     rebuildScenarioComponents();
     updateNavigation();
@@ -153,7 +201,7 @@ void PreviewComponent::rebuildScenarioComponents()
 
     for (const auto& panel : scenario_->panels) {
         auto component = std::make_unique<ui::MetricPanel>(panel);
-        addAndMakeVisible(*component);
+        panelsContent_.addAndMakeVisible(*component);
         panels_.push_back(std::move(component));
     }
 }
@@ -164,23 +212,25 @@ void PreviewComponent::updateNavigation()
     if (scenario_ == nullptr)
         return;
 
-    std::vector<juce::String> views;
+    currentViewNames_.clear();
     if (scenario_->area == preview::ProductArea::refHub) {
         for (const auto* view : refHubViews)
-            views.emplace_back(view);
+            currentViewNames_.emplace_back(view);
     }
     else if (scenario_->area == preview::ProductArea::refTime) {
-        views = { "Timing", "Table", "Favourites", "Settings" };
+        currentViewNames_ = { "Timing", "Table", "Favourites", "Settings" };
     }
     else {
-        views = { "Queue", "References", "Completed", "Models", "Settings" };
+        currentViewNames_ = { "Queue", "References", "Completed", "Models", "Settings" };
     }
 
-    for (const auto& view : views) {
+    for (const auto& view : currentViewNames_) {
         auto button = std::make_unique<juce::TextButton>(view);
         button->setClickingTogglesState(true);
         button->setRadioGroupId(42, juce::dontSendNotification);
-        button->setToggleState(view == scenario_->activeView, juce::dontSendNotification);
+        button->setToggleState(
+            view == juce::String(scenario_->activeView),
+            juce::dontSendNotification);
         button->setTooltip("Open " + view);
         button->onClick = [this, view] { setTransientStatus("Navigation preview: " + view); };
         addAndMakeVisible(*button);
@@ -197,10 +247,12 @@ void PreviewComponent::paint(juce::Graphics& graphics)
     auto bounds = getLocalBounds().reduced(outerPadding);
     auto header = bounds.removeFromTop(headerHeight);
 
-    graphics.setColour(juce::Colour(ui::colour::textMuted));
-    graphics.setFont(ui::font(11.0f, true));
-    graphics.drawText("EHVOTA / " + areaName(scenario_->area),
-        header.removeFromLeft(190), juce::Justification::centredLeft);
+    if (!isCompact()) {
+        graphics.setColour(juce::Colour(ui::colour::textMuted));
+        graphics.setFont(ui::font(11.0f, true));
+        graphics.drawText("EHVOTA / " + areaName(scenario_->area),
+            header.removeFromLeft(190), juce::Justification::centredLeft);
+    }
 
     auto comparison = bounds.removeFromTop(comparisonHeight);
     graphics.setColour(juce::Colour(ui::colour::base));
@@ -209,8 +261,8 @@ void PreviewComponent::paint(juce::Graphics& graphics)
     graphics.drawRoundedRectangle(comparison.toFloat().reduced(0.5f), 8.0f, 1.0f);
 
     auto comparisonText = comparison.reduced(14, 0);
-    if (!isCompact())
-        comparisonText.removeFromRight(480);
+    if (scenario_->area == preview::ProductArea::refHub)
+        comparisonText.removeFromRight(isCompact() ? 336 : 480);
     graphics.setColour(juce::Colour(ui::colour::textPrimary));
     graphics.setFont(ui::font(14.0f, true));
     graphics.drawFittedText(
@@ -273,11 +325,18 @@ void PreviewComponent::resized()
 
     auto bounds = getLocalBounds().reduced(outerPadding);
     auto header = bounds.removeFromTop(headerHeight);
-    header.removeFromLeft(190);
+    menuButton_.setVisible(isCompact());
+    if (isCompact()) {
+        menuButton_.setBounds(header.removeFromLeft(148).reduced(0, 6));
+        header.removeFromLeft(8);
+    }
+    else {
+        header.removeFromLeft(190);
+    }
     scenarioSelector_.setBounds(header.reduced(0, 6));
 
     auto comparison = bounds.removeFromTop(comparisonHeight).reduced(8, 7);
-    const auto showComparisonControls = scenario_->area == preview::ProductArea::refHub && !isCompact();
+    const auto showComparisonControls = scenario_->area == preview::ProductArea::refHub;
     mixButton_.setVisible(showComparisonControls);
     referenceButton_.setVisible(showComparisonControls);
     loudnessMatchButton_.setVisible(showComparisonControls);
@@ -285,16 +344,16 @@ void PreviewComponent::resized()
     blindButton_.setVisible(showComparisonControls);
 
     if (showComparisonControls) {
-        auto controls = comparison.removeFromRight(470);
-        mixButton_.setBounds(controls.removeFromLeft(56));
+        auto controls = comparison.removeFromRight(isCompact() ? 328 : 470);
+        mixButton_.setBounds(controls.removeFromLeft(isCompact() ? 46 : 56));
         controls.removeFromLeft(4);
-        referenceButton_.setBounds(controls.removeFromLeft(90));
-        controls.removeFromLeft(6);
-        loudnessMatchButton_.setBounds(controls.removeFromLeft(72));
-        controls.removeFromLeft(6);
-        captureButton_.setBounds(controls.removeFromLeft(78));
-        controls.removeFromLeft(6);
-        blindButton_.setBounds(controls.removeFromLeft(64));
+        referenceButton_.setBounds(controls.removeFromLeft(isCompact() ? 74 : 90));
+        controls.removeFromLeft(isCompact() ? 4 : 6);
+        loudnessMatchButton_.setBounds(controls.removeFromLeft(isCompact() ? 62 : 72));
+        controls.removeFromLeft(isCompact() ? 4 : 6);
+        captureButton_.setBounds(controls.removeFromLeft(isCompact() ? 66 : 78));
+        controls.removeFromLeft(isCompact() ? 4 : 6);
+        blindButton_.setBounds(controls.removeFromLeft(isCompact() ? 54 : 64));
     }
 
     bounds.removeFromTop(10);
@@ -328,26 +387,48 @@ void PreviewComponent::resized()
     }
     bounds.removeFromTop(10);
 
-    signalGraph_.setBounds(bounds.removeFromTop(130));
+    const auto showSignalGraph = scenario_->area == preview::ProductArea::refHub;
+    const auto showTimingReadout = scenario_->area == preview::ProductArea::refTime;
+    const auto showProgressTimeline = scenario_->area == preview::ProductArea::stemPrep;
+    signalGraph_.setVisible(showSignalGraph);
+    timingReadout_.setVisible(showTimingReadout);
+    progressTimeline_.setVisible(showProgressTimeline);
+
+    auto heroBounds = bounds.removeFromTop(130);
+    if (showSignalGraph)
+        signalGraph_.setBounds(heroBounds);
+    else if (showTimingReadout)
+        timingReadout_.setBounds(heroBounds);
+    else if (showProgressTimeline)
+        progressTimeline_.setBounds(heroBounds);
     bounds.removeFromTop(10);
 
-    const auto columns = bounds.getWidth() >= 720 ? 2 : 1;
+    panelsViewport_.setBounds(bounds);
+    const auto viewportWidth = juce::jmax(1, panelsViewport_.getMaximumVisibleWidth());
+    const auto columns = viewportWidth >= 720 ? 2 : 1;
     const auto gap = 10;
-    const auto columnWidth = columns == 2 ? (bounds.getWidth() - gap) / 2 : bounds.getWidth();
-    std::array<int, 2> yPositions { bounds.getY(), bounds.getY() };
+    const auto columnWidth = columns == 2 ? (viewportWidth - gap) / 2 : viewportWidth;
+    std::array<int, 2> yPositions { 0, 0 };
 
     for (std::size_t index = 0; index < panels_.size(); ++index) {
         const auto column = columns == 2 ? static_cast<int>(index % 2) : 0;
-        const auto x = bounds.getX() + column * (columnWidth + gap);
-        const auto availableHeight = juce::jmax(80, bounds.getBottom() - yPositions[static_cast<std::size_t>(column)]);
-        const auto height = juce::jmin(panels_[index]->preferredHeight(), availableHeight);
+        const auto x = column * (columnWidth + gap);
+        const auto height = panels_[index]->preferredHeight();
         panels_[index]->setBounds(x, yPositions[static_cast<std::size_t>(column)], columnWidth, height);
         yPositions[static_cast<std::size_t>(column)] += height + gap;
     }
+    const auto contentHeight = juce::jmax(
+        panelsViewport_.getHeight(),
+        juce::jmax(yPositions[0], yPositions[1]));
+    panelsContent_.setSize(viewportWidth, contentHeight);
 
     auto actions = getLocalBounds().reduced(outerPadding);
     actions.removeFromTop(headerHeight + comparisonHeight + 10);
     actions.removeFromBottom(footerHeight + 8);
+    if (!isCompact())
+        actions.removeFromLeft(160 + 12);
+    if (isWide())
+        actions.removeFromRight(246 + 12);
     auto actionRow = actions.removeFromBottom(36);
     secondaryActionButton_.setBounds(actionRow.removeFromRight(122));
     actionRow.removeFromRight(8);
@@ -377,12 +458,12 @@ void PreviewComponent::setTransientStatus(juce::String status)
 
 bool PreviewComponent::isCompact() const
 {
-    return getWidth() < 760;
+    return preview::classifyLayout(getWidth()) == preview::LayoutClass::compact;
 }
 
 bool PreviewComponent::isWide() const
 {
-    return getWidth() >= 1100;
+    return preview::classifyLayout(getWidth()) == preview::LayoutClass::wide;
 }
 
 } // namespace ehvota::previewapp

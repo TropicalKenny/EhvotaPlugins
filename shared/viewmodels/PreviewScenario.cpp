@@ -248,6 +248,195 @@ const std::vector<Scenario> scenarios {
         },
         "Repair",
         { "Run installer Repair", "Verify model licence record", "No internet or account required", "CPU/GPU selection unavailable" }
+    },
+    {
+        "library-empty",
+        "Required state · Empty library",
+        "No references found",
+        "The configured folder is valid but contains no reference subfolders. The next action is explicit and non-destructive.",
+        refHub,
+        "Library",
+        "No reference loaded",
+        "No section selected",
+        { { "EMPTY LIBRARY", neutral }, { "OFFLINE", positive } },
+        {
+            { "Reference Library", "Documents\\Ehvota's Bundle\\References is ready",
+              { { "References", "0", "No direct child folders found", neutral },
+                { "Folder access", "Ready", "Local and offline", positive } } }
+        },
+        "Get started",
+        { "Add an existing reference folder", "Open Stem Prep", "Scan again", "No example audio is downloaded" }
+    },
+    {
+        "reference-missing-stem",
+        "Required state · Missing stem",
+        "Reference is usable with one missing diagnostic stem",
+        "The original full mix remains authoritative. Music-only comparisons are unavailable until the missing stem is prepared.",
+        refHub,
+        "Library",
+        "River Glass",
+        "Validation",
+        { { "FULL MIX READY", positive }, { "MUSIC STEM MISSING", caution } },
+        {
+            { "Validation", "4 of 5 expected files found",
+              { { "Full mix", "Ready", "Authoritative comparison source", positive },
+                { "music.wav", "Missing", "No role was guessed", caution },
+                { "Full-mix compare", "Available", "Stem diagnostics degraded", positive } } }
+        },
+        "Resolve missing stem",
+        { "Open source folder", "Queue missing stem in Stem Prep", "Continue with full mix only", "Confidence reasons remain visible" }
+    },
+    {
+        "reference-invalid-length",
+        "Required state · Invalid stem length",
+        "Bass stem does not preserve alignment",
+        "The folder is blocked from component analysis because one stem ends 1.84 seconds early.",
+        refHub,
+        "Library",
+        "Live Room",
+        "Validation failed",
+        { { "INVALID STEM", error }, { "FULL MIX SAFE", positive } },
+        {
+            { "Duration check", "Equal-duration rule failed",
+              { { "Full mix", "04:12.440", "Expected duration", reference },
+                { "bass.wav", "04:10.600", "1.840 s short", error },
+                { "Component analysis", "Unavailable", "Prevents false alignment", caution } } }
+        },
+        "Repair options",
+        { "Do not pad or trim silently", "Re-run Stem Prep", "Choose a corrected file", "Full-mix comparison remains available" }
+    },
+    {
+        "capture-failed",
+        "Required state · Capture failed",
+        "Capture stopped after a source discontinuity",
+        "The prior valid capture is preserved. Partial measurements are not presented as stable evidence.",
+        refHub,
+        "Compare",
+        "Ayo Nights",
+        "Chorus 2 ↔ Main Chorus",
+        { { "CAPTURE FAILED", error }, { "PRIOR CAPTURE SAFE", positive } },
+        {
+            { "Failure", "Music Bus disconnected during loop 2",
+              { { "Usable duration", "8.7 s", "Below stable target", caution },
+                { "Partial result", "Discarded", "Not eligible for proposals", positive },
+                { "Previous capture", "Available", "Created 14:32", reference } } }
+        },
+        "Try again",
+        { "Reconnect Music Bus", "Verify timestamp health", "Restart Capture Analysis", "No history entry was overwritten" }
+    },
+    {
+        "proposal-applied",
+        "Required state · Proposal applied",
+        "Drum Bus proposal applied as one transaction",
+        "The active state is visibly distinct from the captured proposal and can be undone without changing unrelated processors.",
+        refHub,
+        "Proposals",
+        "Ayo Nights",
+        "Chorus 2 ↔ Main Chorus",
+        { { "APPLIED", positive }, { "UNDO AVAILABLE", proposed }, { "2 INSTANCES", neutral } },
+        {
+            { "Transaction", "RefEQ and RefComp updated together",
+              { { "Applied at", "14:46:08", "User approved", positive },
+                { "Output match", "−0.6 dB", "Audition-only gain not persisted", caution },
+                { "Undo scope", "2 instances", "No other links affected", proposed } } }
+        },
+        "Current / Before",
+        { "Matched comparison available", "Undo", "Save as preset", "Capture again before a new proposal" }
+    },
+    {
+        "bridge-unsupported",
+        "Required state · Bridged or unsupported",
+        "Connected-instance linking is unavailable",
+        "This RefHub instance appears isolated from the expected same-process plugins. Audio processing remains safe and local.",
+        refHub,
+        "Links",
+        "Ayo Nights",
+        "Unsupported host configuration",
+        { { "LINK UNSUPPORTED", error }, { "UNBRIDGED REQUIRED", caution } },
+        {
+            { "RefLink", "No same-process peers discovered",
+              { { "Audio path", "Unaffected", "No network or cross-process fallback", positive },
+                { "Remote proposals", "Unavailable", "Manual controls remain available", caution },
+                { "Expected mode", "Unbridged x64", "Version 1 requirement", neutral } } }
+        },
+        "Host setup",
+        { "Open FL Studio wrapper settings", "Use unbridged 64-bit instances", "Reload project after changes", "No silent cross-process transport" }
+    },
+    {
+        "high-cpu",
+        "Required state · High CPU warning",
+        "UI analysis refresh reduced",
+        "The preview demonstrates graceful visual degradation without changing audio processing or capture correctness.",
+        refHub,
+        "Overview",
+        "Ayo Nights",
+        "Live monitor",
+        { { "HIGH CPU", caution }, { "REFRESH 15 Hz", neutral }, { "AUDIO SAFE", positive } },
+        {
+            { "Protection", "Nonessential visual work reduced",
+              { { "Analyzer refresh", "15 Hz", "Reduced from 30 Hz", caution },
+                { "Capture Analysis", "Stable", "Measurement path unchanged", positive },
+                { "Audio callback", "Unaffected", "No UI work on audio thread", positive } } }
+        },
+        "Performance",
+        { "Close hidden detail panels", "Lower visual refresh rate", "Inspect diagnostics", "No automatic DSP bypass" }
+    },
+    {
+        "model-license-error",
+        "Required state · Model licence error",
+        "Installed model cannot be used",
+        "Stem Prep blocks inference because the installed model record does not match an approved redistribution licence.",
+        stemPrep,
+        "Models",
+        "References folder",
+        "Licence verification failed",
+        { { "MODEL BLOCKED", error }, { "QUEUE PRESERVED", positive } },
+        {
+            { "Licence check", "Expected model notice is missing",
+              { { "Inference", "Disabled", "No model data loaded", error },
+                { "Existing references", "Available", "Library inspection unaffected", positive },
+                { "Privacy", "Offline", "No remote licence request", positive } } }
+        },
+        "Repair",
+        { "Run installer Repair", "Review MODEL_LICENSES", "Do not download an unverified checkpoint", "No queue item was modified" }
+    },
+    {
+        "stem-prep-cancelled",
+        "Required state · Stem Prep cancellation",
+        "Job cancelled safely",
+        "The original remains untouched and incomplete temporary outputs were removed before the queue advanced.",
+        stemPrep,
+        "Queue",
+        "References folder",
+        "River Glass · cancelled",
+        { { "CANCELLED", neutral }, { "CLEANUP PASSED", positive } },
+        {
+            { "Cancellation result", "No completed-looking partial folder",
+              { { "Original", "Preserved", "Hash unchanged", positive },
+                { "Temporary files", "Removed", "Cleanup verified", positive },
+                { "Queue", "2 waiting", "Ready to continue", neutral } } }
+        },
+        "Next action",
+        { "Restart River Glass", "Start another queued job", "Open source folder", "Cancellation is recorded in local history" }
+    },
+    {
+        "installer-repair",
+        "Required state · Installer repair guidance",
+        "A local component needs repair",
+        "The product explains which installed component is missing without attempting a download or certificate change.",
+        stemPrep,
+        "Settings",
+        "Ehvota's Bundle",
+        "Repair required",
+        { { "REPAIR REQUIRED", caution }, { "PERSONAL DATA SAFE", positive } },
+        {
+            { "Detected issue", "Balanced 4-Stem runtime file is missing",
+              { { "Plugins", "Available", "Core tools do not require the model", positive },
+                { "Stem Prep", "Degraded", "Separation disabled", caution },
+                { "Personal content", "Preserved", "References and presets are not removed", positive } } }
+        },
+        "Repair instructions",
+        { "Open Apps & features", "Choose Ehvota's Bundle → Modify/Repair", "Do not import a certificate automatically", "Re-run local diagnostics" }
     }
 };
 
@@ -297,6 +486,31 @@ std::vector<std::string> validateScenarioCatalogue()
     for (std::size_t index = 0; index < journeys.size(); ++index) {
         if (!journeys[index])
             errors.emplace_back("Missing Journey " + std::to_string(index + 1) + " scenario.");
+    }
+
+    constexpr std::array requiredStateIds {
+        "library-empty",
+        "reference-ready",
+        "reference-missing-stem",
+        "reference-invalid-length",
+        "mapping-disconnected",
+        "capture-running",
+        "capture-failed",
+        "low-confidence",
+        "proposal-review",
+        "proposal-applied",
+        "render-safe",
+        "bridge-unsupported",
+        "high-cpu",
+        "model-missing",
+        "model-license-error",
+        "stem-prep-cancelled",
+        "installer-repair"
+    };
+
+    for (const auto* requiredId : requiredStateIds) {
+        if (!ids.contains(requiredId))
+            errors.emplace_back("Missing required UI state scenario: " + std::string(requiredId));
     }
 
     return errors;

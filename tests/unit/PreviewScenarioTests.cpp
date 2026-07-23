@@ -1,5 +1,6 @@
 #include "shared/timing/RefTimeMath.h"
 #include "shared/ui/DesignTokenValues.h"
+#include "shared/viewmodels/LayoutPolicy.h"
 #include "shared/viewmodels/PreviewScenario.h"
 
 #include <algorithm>
@@ -28,8 +29,8 @@ void testScenarioCatalogue()
         std::cerr << "CATALOGUE: " << error << '\n';
 
     expect(errors.empty(), "preview scenario catalogue must be valid");
-    expect(ehvota::preview::allScenarios().size() >= 11,
-           "catalogue must include eight journeys plus required state fixtures");
+    expect(ehvota::preview::allScenarios().size() >= 21,
+           "catalogue must include eight journeys plus all mandatory state fixtures");
     expect(ehvota::preview::findScenario("proposal-review") != nullptr,
            "proposal review fixture must exist");
     expect(ehvota::preview::findScenario("render-safe") != nullptr,
@@ -110,6 +111,32 @@ void testDesignTokenContrast()
            "reference graph color must remain visible on canvas");
 }
 
+void testLayoutPolicy()
+{
+    using ehvota::preview::LayoutClass;
+    using ehvota::preview::classifyLayout;
+
+    expect(classifyLayout(720) == LayoutClass::compact,
+           "minimum preview width must use compact layout");
+    expect(classifyLayout(759) == LayoutClass::compact,
+           "759 logical pixels must remain compact");
+    expect(classifyLayout(760) == LayoutClass::standard,
+           "760 logical pixels must enter standard layout");
+    expect(classifyLayout(1'099) == LayoutClass::standard,
+           "1099 logical pixels must remain standard");
+    expect(classifyLayout(1'100) == LayoutClass::wide,
+           "1100 logical pixels must enter wide layout");
+
+    bool rejectedInvalidWidth = false;
+    try {
+        static_cast<void>(classifyLayout(0));
+    }
+    catch (const std::invalid_argument&) {
+        rejectedInvalidWidth = true;
+    }
+    expect(rejectedInvalidWidth, "non-positive logical width must be rejected");
+}
+
 } // namespace
 
 int main()
@@ -117,6 +144,7 @@ int main()
     testScenarioCatalogue();
     testRefTimeCalculation();
     testDesignTokenContrast();
+    testLayoutPolicy();
 
     if (failures != 0) {
         std::cerr << failures << " test assertion(s) failed.\n";

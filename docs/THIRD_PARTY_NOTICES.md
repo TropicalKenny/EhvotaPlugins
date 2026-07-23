@@ -1,17 +1,19 @@
 # Third-party dependency and notice register
 
-Status: research only; no third-party production dependency has been downloaded, vendored, linked, or distributed.
+Status: JUCE source is pinned for development; no third-party binary or model is distributed yet.
 
 ## JUCE
 
-- Candidate: JUCE 8.0.9, based on the official release page observed on 2026-07-23.
+- Selected: JUCE 8.0.9.
+- Pinned tag commit: `f72bad64d29715216226685810c5196bd0d79d77`.
+- Repository location: `third_party/JUCE` Git submodule.
 - Source: <https://github.com/juce-framework/JUCE/releases>
 - Licence: JUCE 8 EULA with Starter, Indie, Pro, and Educational tiers.
 - EULA: <https://juce.com/legal/juce-8-licence/>
 - Pricing/licence overview: <https://juce.com/get-juce/>
-- Status: **not accepted or configured**.
-- Required decision: user must select and accept a licence appropriate to personal development, revenue/funding, ownership, team size, and any distribution.
-- Integration rule after acceptance: pin an exact reviewed revision and record it here; do not track an unbounded branch.
+- Licence selection: JUCE 8 Starter.
+- Acceptance: user explicitly accepted the JUCE 8 EULA on 2026-07-23.
+- Integration rule: the Git submodule pins the exact reviewed release. Do not update it without a new licence, maintenance, compatibility, diff, and test review.
 
 ## VST3 SDK/API
 

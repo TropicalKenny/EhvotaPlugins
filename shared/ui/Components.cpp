@@ -2,6 +2,7 @@
 
 #include "Theme.h"
 
+#include <array>
 #include <cmath>
 #include <functional>
 
@@ -11,6 +12,8 @@ StatusBadge::StatusBadge(preview::Badge badge)
     : badge_(std::move(badge))
 {
     setInterceptsMouseClicks(false, false);
+    setTitle(juce::String(badge_.text));
+    setDescription("Status");
 }
 
 void StatusBadge::paint(juce::Graphics& graphics)
@@ -32,10 +35,24 @@ int StatusBadge::idealWidth() const
     return juce::jmax(76, 22 + static_cast<int>(badge_.text.size()) * 7);
 }
 
+std::unique_ptr<juce::AccessibilityHandler> StatusBadge::createAccessibilityHandler()
+{
+    return std::make_unique<juce::AccessibilityHandler>(
+        *this,
+        juce::AccessibilityRole::staticText);
+}
+
 MetricPanel::MetricPanel(preview::Panel panel)
     : panel_(std::move(panel))
 {
     setInterceptsMouseClicks(false, false);
+    setTitle(juce::String(panel_.title));
+
+    juce::String description(panel_.summary);
+    for (const auto& metric : panel_.metrics)
+        description += ". " + juce::String(metric.label) + ": " + juce::String(metric.value)
+            + ". " + juce::String(metric.detail);
+    setDescription(description);
 }
 
 void MetricPanel::paint(juce::Graphics& graphics)
@@ -82,9 +99,19 @@ int MetricPanel::preferredHeight() const
     return 82 + static_cast<int>(panel_.metrics.size()) * 49;
 }
 
+std::unique_ptr<juce::AccessibilityHandler> MetricPanel::createAccessibilityHandler()
+{
+    return std::make_unique<juce::AccessibilityHandler>(
+        *this,
+        juce::AccessibilityRole::group);
+}
+
 void SignalGraph::setScenario(std::string scenarioId)
 {
     scenarioId_ = std::move(scenarioId);
+    setTitle("Mix and reference comparison graph");
+    setDescription("Solid line represents Mix. Dashed line represents Reference. "
+                   "Detailed values are available in the adjacent metric panels.");
     repaint();
 }
 
@@ -145,6 +172,108 @@ void SignalGraph::paint(juce::Graphics& graphics)
     graphics.setColour(juce::Colour(colour::reference));
     graphics.drawText("REF -- DASHED", plot.toNearestInt().removeFromTop(18), juce::Justification::topRight);
 
+}
+
+std::unique_ptr<juce::AccessibilityHandler> SignalGraph::createAccessibilityHandler()
+{
+    return std::make_unique<juce::AccessibilityHandler>(
+        *this,
+        juce::AccessibilityRole::image);
+}
+
+void TimingReadout::setValues(juce::String exact, juce::String secondary)
+{
+    exact_ = std::move(exact);
+    secondary_ = std::move(secondary);
+    setTitle("Exact musical timing");
+    setDescription(exact_ + ". " + secondary_);
+    repaint();
+}
+
+void TimingReadout::paint(juce::Graphics& graphics)
+{
+    auto bounds = getLocalBounds().toFloat();
+    graphics.setColour(juce::Colour(colour::base));
+    graphics.fillRoundedRectangle(bounds, 8.0f);
+    graphics.setColour(juce::Colour(colour::borderSubtle));
+    graphics.drawRoundedRectangle(bounds.reduced(0.5f), 8.0f, 1.0f);
+
+    auto content = getLocalBounds().reduced(16, 10);
+    graphics.setColour(juce::Colour(colour::textMuted));
+    graphics.setFont(font(11.0f, true));
+    graphics.drawText("EXACT MUSICAL DELAY", content.removeFromTop(18), juce::Justification::centred);
+
+    graphics.setColour(juce::Colour(colour::processing));
+    graphics.setFont(numericFont(40.0f, true));
+    graphics.drawText(exact_, content.removeFromTop(58), juce::Justification::centred);
+
+    graphics.setColour(juce::Colour(colour::textSecondary));
+    graphics.setFont(numericFont(13.0f));
+    graphics.drawText(secondary_, content, juce::Justification::centred);
+}
+
+std::unique_ptr<juce::AccessibilityHandler> TimingReadout::createAccessibilityHandler()
+{
+    return std::make_unique<juce::AccessibilityHandler>(
+        *this,
+        juce::AccessibilityRole::staticText);
+}
+
+void ProgressTimeline::setState(juce::String title, juce::String currentStep, const double progress)
+{
+    title_ = std::move(title);
+    currentStep_ = std::move(currentStep);
+    progress_ = juce::jlimit(0.0, 1.0, progress);
+    setTitle(title_);
+    setDescription(currentStep_ + ". " + juce::String(juce::roundToInt(progress_ * 100.0)) + " percent.");
+    repaint();
+}
+
+void ProgressTimeline::paint(juce::Graphics& graphics)
+{
+    auto bounds = getLocalBounds().toFloat();
+    graphics.setColour(juce::Colour(colour::base));
+    graphics.fillRoundedRectangle(bounds, 8.0f);
+    graphics.setColour(juce::Colour(colour::borderSubtle));
+    graphics.drawRoundedRectangle(bounds.reduced(0.5f), 8.0f, 1.0f);
+
+    auto content = getLocalBounds().reduced(18, 13);
+    graphics.setColour(juce::Colour(colour::textPrimary));
+    graphics.setFont(font(14.0f, true));
+    graphics.drawText(title_, content.removeFromTop(22), juce::Justification::centredLeft);
+
+    graphics.setColour(juce::Colour(colour::textSecondary));
+    graphics.setFont(font(12.0f));
+    graphics.drawText(
+        currentStep_ + " · " + juce::String(juce::roundToInt(progress_ * 100.0)) + "%",
+        content.removeFromTop(22),
+        juce::Justification::centredLeft);
+
+    auto track = content.withTrimmedTop(12).removeFromTop(12).toFloat();
+    graphics.setColour(juce::Colour(colour::overlay));
+    graphics.fillRoundedRectangle(track, 6.0f);
+    graphics.setColour(juce::Colour(colour::proposed));
+    graphics.fillRoundedRectangle(track.withWidth(track.getWidth() * static_cast<float>(progress_)), 6.0f);
+
+    const std::array<const char*, 4> stages { "PREPARE", "SEPARATE", "VALIDATE", "FINALIZE" };
+    auto stageArea = content.withTrimmedTop(34);
+    const auto stageWidth = stageArea.getWidth() / static_cast<int>(stages.size());
+    graphics.setFont(font(10.0f, true));
+    for (std::size_t index = 0; index < stages.size(); ++index) {
+        auto stage = stageArea.removeFromLeft(stageWidth);
+        const auto threshold = static_cast<double>(index) / static_cast<double>(stages.size());
+        graphics.setColour(progress_ >= threshold
+                ? juce::Colour(colour::positive)
+                : juce::Colour(colour::textMuted));
+        graphics.drawText(stages[index], stage, juce::Justification::centred);
+    }
+}
+
+std::unique_ptr<juce::AccessibilityHandler> ProgressTimeline::createAccessibilityHandler()
+{
+    return std::make_unique<juce::AccessibilityHandler>(
+        *this,
+        juce::AccessibilityRole::progressBar);
 }
 
 } // namespace ehvota::ui

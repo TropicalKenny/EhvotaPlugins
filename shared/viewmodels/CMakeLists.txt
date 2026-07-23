@@ -1,4 +1,6 @@
 add_library(EhvotaViewModels STATIC
+    LayoutPolicy.cpp
+    LayoutPolicy.h
     PreviewScenario.cpp
     PreviewScenario.h
 )

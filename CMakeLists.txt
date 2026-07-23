@@ -22,12 +22,20 @@ if(EHVOTA_BUILD_UI_PREVIEW)
         message(FATAL_ERROR "Ehvota UI Preview is a Windows-only product target.")
     endif()
 
-    set(EHVOTA_JUCE_SOURCE_DIR "" CACHE PATH "Path to an accepted, local JUCE source checkout")
+    set(_ehvota_default_juce_source "${PROJECT_SOURCE_DIR}/third_party/JUCE")
+    if(DEFINED ENV{JUCE_ROOT} AND NOT "$ENV{JUCE_ROOT}" STREQUAL "")
+        set(_ehvota_default_juce_source "$ENV{JUCE_ROOT}")
+    endif()
+    set(EHVOTA_JUCE_SOURCE_DIR
+        "${_ehvota_default_juce_source}"
+        CACHE PATH
+        "Path to an accepted, local JUCE source checkout"
+    )
     if(NOT EXISTS "${EHVOTA_JUCE_SOURCE_DIR}/CMakeLists.txt")
         message(FATAL_ERROR
             "EHVOTA_JUCE_SOURCE_DIR must point to an accepted local JUCE checkout. "
-            "Set JUCE_ROOT and use the Windows preset, or pass "
-            "-DEHVOTA_JUCE_SOURCE_DIR=C:/path/to/JUCE. The project does not "
+            "Initialize the pinned submodule, set JUCE_ROOT, or pass "
+            "-DEHVOTA_JUCE_SOURCE_DIR=C:/path/to/JUCE. CMake does not "
             "download JUCE or accept its licence automatically."
         )
     endif()

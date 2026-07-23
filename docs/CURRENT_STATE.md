@@ -8,7 +8,7 @@ Ehvota's Bundle is in Phase 0/1 foundation work. The workspace began empty. It n
 
 There is no production DSP, VST3, installer, stem model, signing workflow, or release artefact.
 
-The repository currently contains the living plan, repository guidance, ignore rules, and active planning/research documentation. Any UI, DSP, host, installer, or signing behaviour not explicitly backed by later evidence remains unimplemented.
+The repository currently contains the living plan, repository guidance, active planning/research documentation, deterministic Phase 1 models/tests, preview source, and a pinned JUCE dependency. Any UI, DSP, host, installer, or signing behaviour not explicitly backed by later evidence remains unimplemented.
 
 ## Host boundary
 
@@ -37,18 +37,22 @@ Consequences:
 - `cmake --preset portable-tests`, `cmake --build --preset portable-tests`, and `ctest --preset portable-tests` passed on 2026-07-23.
 - The tests cover scenario-catalogue completeness, exact RefTime calculations, invalid BPM rejection, and candidate token contrast thresholds.
 - Initial foundation commit: `d816aab` (`chore: establish UI-first project foundation`).
+- The user accepted JUCE 8 Starter and the JUCE 8 EULA on 2026-07-23.
+- JUCE 8.0.9 is pinned as a submodule at `f72bad64d29715216226685810c5196bd0d79d77`.
+- The deterministic scenario catalogue now covers all mandatory UI validation states, including empty/missing/invalid reference states, capture failure, proposal applied, unsupported bridge, high CPU, model licence failure, safe cancellation, and installer repair.
+- Responsive breakpoints are implemented in a dependency-free layout policy with boundary tests.
+- A compile-only C++20 check against the pinned JUCE headers passed for all shared UI and preview translation units with `-Wall -Wextra -Wpedantic`. This proves source/API syntax on the current compiler only; it is not a linked executable or Windows evidence.
 
 ## Active work
 
 - Verify current first-party JUCE, VST3, Windows, FL Studio, and Inno Setup requirements.
 - Resolve the JUCE licence decision before fetching or building the framework.
-- Review and compile the JUCE UI source after dependency approval.
 - Run the Windows audit script and record the intended toolchain.
+- Configure and compile the pinned JUCE UI target with MSVC on Windows.
 - Exercise and refine Ehvota UI Preview on Windows before screenshots or approval.
 
 ## Release blockers
 
-- The user has not yet confirmed acceptance of a JUCE licence path.
 - The intended Windows toolchain has not been audited.
 - UI Preview source exists but no Windows/JUCE build or rendered evidence exists.
 - The UI direction has not passed the mandatory user approval gate.

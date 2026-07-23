@@ -28,6 +28,7 @@ private:
     [[nodiscard]] bool isWide() const;
 
     juce::ComboBox scenarioSelector_;
+    juce::TextButton menuButton_ { "VIEW" };
     juce::TextButton mixButton_ { "MIX" };
     juce::TextButton referenceButton_ { "REFERENCE" };
     juce::TextButton loudnessMatchButton_ { "MATCH" };
@@ -39,8 +40,13 @@ private:
 
     std::vector<std::unique_ptr<juce::TextButton>> navigationButtons_;
     std::vector<std::unique_ptr<ui::StatusBadge>> badges_;
+    juce::Component panelsContent_;
+    juce::Viewport panelsViewport_;
     std::vector<std::unique_ptr<ui::MetricPanel>> panels_;
     ui::SignalGraph signalGraph_;
+    ui::TimingReadout timingReadout_;
+    ui::ProgressTimeline progressTimeline_;
+    std::vector<juce::String> currentViewNames_;
 
     const preview::Scenario* scenario_ { nullptr };
     int scenarioIndex_ { 0 };

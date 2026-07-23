@@ -81,8 +81,7 @@ function Find-VisualStudio {
 
 function Find-File {
     param(
-        [Parameter(Mandatory)]
-        [string[]] $Candidates
+        [string[]] $Candidates = @()
     )
 
     foreach ($candidate in $Candidates) {
@@ -94,7 +93,8 @@ function Find-File {
     return $null
 }
 
-if (-not $IsWindows) {
+$isWindowsHost = $PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows
+if (-not $isWindowsHost) {
     throw 'This audit must run in PowerShell on Windows 10 or Windows 11.'
 }
 
@@ -126,9 +126,18 @@ $flStudioCandidates = @(
 $tools = @(
     (Get-CommandRecord -Name git),
     (Get-CommandRecord -Name cmake),
-    (Get-CommandRecord -Name ninja -Required $false),
+    (Get-CommandRecord -Name ninja),
+    (Get-CommandRecord -Name cl -VersionArguments @()),
     (Get-CommandRecord -Name python -VersionArguments @('--version') -Required $false)
 )
+
+$cmakeTool = $tools | Where-Object { $_.name -eq 'cmake' } | Select-Object -First 1
+$cmakeVersionSupported = $false
+if ($cmakeTool.found -and $cmakeTool.version -match '(\d+)\.(\d+)\.(\d+)') {
+    $cmakeVersionSupported = [version] $Matches[0] -ge [version] '3.22.0'
+}
+
+$windowsVersionSupported = [version] $os.Version -ge [version] '10.0'
 
 $juceRootConfigured = -not [string]::IsNullOrWhiteSpace($env:JUCE_ROOT)
 $juceRootExists = $juceRootConfigured -and (Test-Path -LiteralPath $env:JUCE_ROOT -PathType Container)
@@ -136,12 +145,17 @@ $juceRootExists = $juceRootConfigured -and (Test-Path -LiteralPath $env:JUCE_ROO
 $result = [ordered]@{
     auditVersion = 1
     capturedAt   = (Get-Date).ToUniversalTime().ToString('o')
+    powerShell = [ordered]@{
+        edition = $PSVersionTable.PSEdition
+        version = $PSVersionTable.PSVersion.ToString()
+    }
     operatingSystem = [ordered]@{
         caption        = $os.Caption
         version        = $os.Version
         buildNumber    = $os.BuildNumber
         architecture   = $os.OSArchitecture
         is64Bit        = [Environment]::Is64BitOperatingSystem
+        supported      = $windowsVersionSupported
     }
     hardware = [ordered]@{
         manufacturer = $computer.Manufacturer
@@ -153,17 +167,21 @@ $result = [ordered]@{
     visualStudio = $visualStudio
     tools = $tools
     windowsSdk = [ordered]@{
-        signToolX64 = Find-File -Candidates $signtoolCandidates
+        signToolX64 = (Find-File -Candidates $signtoolCandidates)
     }
     innoSetup = [ordered]@{
-        compiler = Find-File -Candidates $innoCandidates
+        compiler = (Find-File -Candidates $innoCandidates)
     }
     flStudio = [ordered]@{
-        executable = Find-File -Candidates $flStudioCandidates
+        executable = (Find-File -Candidates $flStudioCandidates)
     }
     juce = [ordered]@{
         rootConfigured = $juceRootConfigured
         rootExists     = $juceRootExists
+    }
+    requirements = [ordered]@{
+        cmakeAtLeast3_22 = $cmakeVersionSupported
+        msvcShellActive  = [bool] ($tools | Where-Object { $_.name -eq 'cl' -and $_.found })
     }
     vst3 = [ordered]@{
         userDevelopmentPath = Join-Path $env:LOCALAPPDATA 'Programs\Common\VST3\Ehvota'
@@ -174,8 +192,10 @@ $result = [ordered]@{
 $requiredToolsPresent = @($tools | Where-Object { $_.required } | ForEach-Object { $_.found }) -notcontains $false
 $baselineReady = (
     $result.operatingSystem.is64Bit -and
+    $result.operatingSystem.supported -and
     $visualStudio.hasCppTools -and
-    $requiredToolsPresent
+    $requiredToolsPresent -and
+    $cmakeVersionSupported
 )
 
 $result['baselineReady'] = $baselineReady
@@ -186,6 +206,7 @@ if ($Json) {
 else {
     Write-Host "Ehvota Windows development audit"
     Write-Host "OS: $($os.Caption) $($os.Version) build $($os.BuildNumber) ($($os.OSArchitecture))"
+    Write-Host "PowerShell: $($result.powerShell.edition) $($result.powerShell.version)"
     Write-Host "Visual Studio C++ tools: $($visualStudio.hasCppTools)"
 
     foreach ($tool in $tools) {
@@ -197,6 +218,8 @@ else {
     Write-Host "Inno Setup compiler: $($result.innoSetup.compiler)"
     Write-Host "FL Studio: $($result.flStudio.executable)"
     Write-Host "JUCE_ROOT configured and valid: $juceRootExists"
+    Write-Host "CMake >= 3.22: $cmakeVersionSupported"
+    Write-Host "MSVC developer shell active: $($result.requirements.msvcShellActive)"
     Write-Host "Baseline configure readiness: $baselineReady"
 }
 

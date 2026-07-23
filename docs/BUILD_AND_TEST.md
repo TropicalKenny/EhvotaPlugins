@@ -1,6 +1,6 @@
 # Build and test
 
-Status: Bootstrap contract defined; no product target exists yet.
+Status: JUCE target and portable tests defined; Windows execution remains pending.
 
 ## Supported product environment
 
@@ -9,7 +9,7 @@ Status: Bootstrap contract defined; no product target exists yet.
 - MSVC x64 toolset and a Windows 10/11 SDK.
 - CMake 3.22 or newer, matching JUCE's documented minimum.
 - Git.
-- Ninja is recommended for command-line presets but is not a product runtime dependency.
+- Ninja is required by the provided `Ninja Multi-Config` Windows preset but is not a product runtime dependency.
 - FL Studio x64 is required for authoritative host validation.
 - Inno Setup and the Windows SDK signing tools are later release dependencies.
 
@@ -33,13 +33,19 @@ where.exe signtool
 where.exe iscc
 ```
 
-Run compiler/build commands from **Developer PowerShell for VS** or after importing the Visual Studio developer environment. Do not mistake an unrelated `signtool` executable for the Windows SDK Authenticode tool.
+Run compiler/build commands from **Developer PowerShell for VS** or after importing the Visual Studio developer environment. The audit requires `cl` to be active because the preset uses Ninja rather than MSBuild to discover MSVC. Do not mistake an unrelated `signtool` executable for the Windows SDK Authenticode tool.
 
 The repository will add `tools/check-windows-dev.ps1` to turn this into a repeatable redacted diagnostic.
 
 ## Planned configure/build commands
 
-These commands become authoritative only after `CMakePresets.json` exists and has been run on Windows:
+Clone or initialize the pinned dependency:
+
+```powershell
+git submodule update --init --recursive
+```
+
+Then run from **Developer PowerShell for Visual Studio**:
 
 ```powershell
 cmake --preset windows-msvc
@@ -64,15 +70,22 @@ cmake --build --preset windows-msvc-debug --target EhvotaUIDemo
 
 Exact output paths must be updated from observed CMake output rather than assumed.
 
-## JUCE dependency gate
+## JUCE dependency
 
-JUCE is not yet downloaded or configured. Before that happens:
+The user accepted JUCE 8 Starter and the JUCE 8 EULA on 2026-07-23. The repository pins JUCE 8.0.9 at commit:
 
-1. The user selects/accepts an appropriate JUCE licence path.
-2. Record the exact version, revision, licence, source URL, and maintenance decision.
-3. Pin the dependency reproducibly.
-4. Store required notices without copying secret or account information.
-5. Verify CMake/MSVC compatibility on Windows.
+```text
+f72bad64d29715216226685810c5196bd0d79d77
+```
+
+The default source is `third_party/JUCE`. To use an equivalent accepted local checkout:
+
+```powershell
+$env:JUCE_ROOT = 'C:\Dev\JUCE'
+cmake --preset windows-msvc
+```
+
+CMake never downloads JUCE or accepts its licence automatically. Verify CMake/MSVC compatibility on Windows before treating the dependency gate as complete.
 
 ## UI Preview validation
 

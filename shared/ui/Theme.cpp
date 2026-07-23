@@ -29,18 +29,26 @@ juce::Colour toneColour(const preview::Tone tone)
 
 juce::Font font(const float height, const bool semibold)
 {
-    return {
-        "Segoe UI",
-        height,
-        semibold ? juce::Font::bold : juce::Font::plain
+    return juce::Font {
+        juce::FontOptions {
+            "Segoe UI",
+            height,
+            semibold ? juce::Font::bold : juce::Font::plain
+        }
     };
 }
 
 juce::Font numericFont(const float height, const bool semibold)
 {
-    auto result = font(height, semibold);
-    result.setExtraKerningFactor(0.01f);
-    return result;
+    return juce::Font {
+        juce::FontOptions {
+            "Segoe UI",
+            height,
+            semibold ? juce::Font::bold : juce::Font::plain
+        }
+            .withFeatureEnabled("tnum")
+            .withKerningFactor(0.01f)
+    };
 }
 
 } // namespace ehvota::ui

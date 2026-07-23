@@ -167,6 +167,8 @@ Global host conflicts must be tested in FL Studio. A shortcut that the host inte
 - Reduced motion removes decorative transitions and crossfades positional UI changes.
 - Analyzer motion remains data-driven but may reduce refresh rate.
 - Audio transition timing, such as RefTime crossfade, is not a decorative UI animation.
+- Analyzer refresh defaults to 30 Hz, may offer a 60 Hz High mode, and drops to 15 Hz for reduced-motion/high-CPU protection.
+- Idle, hidden, minimized, and fully obscured graphs do not repaint continuously.
 
 ## Shared shell
 

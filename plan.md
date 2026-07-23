@@ -49,8 +49,8 @@ Read-only audit performed on 2026-07-23 before any repository mutation.
 - [ ] Confirm the exact Windows edition/build, CPU, RAM, GPU, display resolutions, and scaling levels.
 - [ ] Confirm installed Visual Studio/Build Tools workloads and Windows SDK version.
 - [ ] Confirm installed FL Studio version/edition and its VST3 scanning paths.
-- [ ] Confirm whether JUCE licensing terms are acceptable for this personal project and any future distribution.
-- [ ] Confirm whether JUCE will be fetched reproducibly or vendored after licence/maintenance review.
+- [x] Confirm whether JUCE licensing terms are acceptable for this personal project and any future distribution. User selected JUCE 8 Starter and accepted the JUCE 8 EULA on 2026-07-23.
+- [x] Confirm whether JUCE will be fetched reproducibly or vendored after licence/maintenance review. JUCE 8.0.9 is pinned as a Git submodule at `f72bad64d29715216226685810c5196bd0d79d77`.
 - [ ] Confirm the exact Inno Setup version and whether it meets repair/modify requirements without a different packaging layer.
 - [ ] Confirm the Windows audio-device and GPU environment for Stem Prep benchmarks.
 - [ ] Confirm whether the reference library must support non-ASCII paths and Windows long paths in Version 1.
@@ -59,7 +59,7 @@ Read-only audit performed on 2026-07-23 before any repository mutation.
 
 ## Research questions
 
-- [ ] What is the current stable JUCE release, supported CMake/MSVC baseline, VST3 support status, licence, and redistribution model?
+- [x] What is the current stable JUCE release, supported CMake/MSVC baseline, VST3 support status, licence, and redistribution model? Initial decision recorded in `docs/DECISIONS.md` and `docs/THIRD_PARTY_NOTICES.md`; Windows compatibility remains to be executed.
 - [ ] Which official FL Studio behaviours and limitations affect tempo, time signature, Smart Disable, offline rendering, scaling, plugin delay compensation, and VST3 state?
 - [ ] Which analyser and reference workflows are most successful in current professional tools, without copying their visual identity?
 - [ ] Which accessible Windows typeface best satisfies tabular-numeral, DPI, licence, and redistribution requirements?
@@ -182,9 +182,11 @@ Acceptance criteria:
 - [x] Define empty/loading/offline/error/degraded/render/unsupported states.
 - [x] Define compact/standard/wide layouts and minimum/default sizes.
 - [x] Define 100%, 125%, 150%, 175%, and 200% Windows scaling validation.
-- [ ] Define UI performance budgets and reduced-motion behaviour.
+- [x] Define UI performance budgets and reduced-motion behaviour.
+- [x] Pin accepted JUCE 8.0.9 source at official tag commit `f72bad64d29715216226685810c5196bd0d79d77`.
 - [ ] Establish JUCE and the Windows MSVC/CMake build.
 - [ ] Compile and review the shared production UI component library on Windows. Source exists; JUCE/Windows build is unverified.
+- [x] Run a non-product compile-only C++20 syntax/warning check against pinned JUCE headers. All UI/preview translation units passed with `-Wall -Wextra -Wpedantic`; no link, render, or Windows claim is implied.
 - [x] Create deterministic mock/replay view models for all eight journeys and required low-confidence/render-safe/missing-model states.
 - [ ] Build Ehvota UI Preview using those shared components. Target/source exists; no JUCE/Windows build evidence yet.
 - [ ] Demonstrate every required screen and journey.
@@ -375,6 +377,10 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 - Verified `cmake --preset portable-tests`, `cmake --build --preset portable-tests`, and `ctest --preset portable-tests`: 1/1 test passed.
 - Verified a fresh ephemeral OpenAI GPT Codex session loaded root `AGENTS.md`; it reproduced the first repository rule while explicitly prohibited from reading files. The global Stop hook then reported a failure, with no repository mutation.
 - Reviewed and committed the initial Phase 0/1 foundation as `d816aab` (`chore: establish UI-first project foundation`).
+- Recorded the user's JUCE 8 Starter/EULA acceptance and pinned official JUCE 8.0.9 commit `f72bad64d29715216226685810c5196bd0d79d77`.
+- Expanded deterministic fixtures to cover every mandatory UI validation state and added tested compact/standard/wide breakpoint policy.
+- The initial tag-as-branch submodule command failed after cloning an empty worktree. Changed method: fetched the verified tag directly, checked out its exact commit, registered the gitlink, and confirmed `git submodule status` reports JUCE 8.0.9.
+- Fixed JUCE string-boundary compile errors found by the first compile-only check; the second check and a warnings-enabled repeat passed.
 - Windows/JUCE compilation, rendered UI, DPI/accessibility, FL Studio, installer, and signing remain unverified.
 
 ## Unresolved questions
@@ -388,8 +394,8 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 
 ## Next three concrete actions
 
-1. Obtain the user's explicit JUCE licence-path decision; then pin an exact accepted JUCE 8 revision without auto-downloading it.
-2. On the intended Windows computer, run `tools/check-windows-dev.ps1`, configure `windows-msvc`, and compile/test `EhvotaUIDemo`.
+1. On the intended Windows computer, run `tools/check-windows-dev.ps1` from Developer PowerShell and record the redacted result.
+2. Run `git submodule update --init --recursive`, configure `windows-msvc`, and compile/test `EhvotaUIDemo` with MSVC.
 3. Exercise every scenario, fix compile/render/layout/accessibility defects, then capture the required Windows size/DPI screenshots and update the UI acceptance evidence.
 
 ## Restart instructions

@@ -15,8 +15,7 @@
       "cacheVariables": {
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
         "EHVOTA_BUILD_UI_PREVIEW": "ON",
-        "EHVOTA_BUILD_TESTS": "ON",
-        "EHVOTA_JUCE_SOURCE_DIR": "$env{JUCE_ROOT}"
+        "EHVOTA_BUILD_TESTS": "ON"
       },
       "condition": {
         "type": "equals",

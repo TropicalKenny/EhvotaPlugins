@@ -118,6 +118,22 @@ Confirmation required:
 
 Values are logical pixels and may be refined from Windows evidence. All major plugin editors remain continuously resizable.
 
+## UI performance budgets
+
+Initial Phase 1 acceptance targets, to be measured on the recorded Windows baseline:
+
+- No continuous repaint timer while the UI is idle and no data is changing.
+- Default live analyzer refresh: 30 Hz; optional High: at most 60 Hz; reduced-motion/high-CPU fallback: 15 Hz.
+- Hidden, minimized, or fully obscured graphs pause nonessential repaint work.
+- UI snapshot ingestion is bounded; a slow UI consumer may drop visual frames but never block the audio thread.
+- Paint/layout work at default RefHub size: p95 at or below 8 ms and no unexplained frame above 50 ms during the deterministic replay.
+- Continuous resize: p95 input-to-updated-frame at or below 50 ms, with no stall above 150 ms.
+- Cold launch to interactive UI: at or below 1.5 seconds; warm launch: at or below 750 ms.
+- UI Preview working set: target below 96 MiB at startup and below 160 MiB while cycling every fixture.
+- Changing visual refresh quality must not change captured measurement values, proposal inputs, or audio processing.
+
+These are budgets, not current claims. Record hardware, Windows build, display scale, graphics backend, build type, scenario, sample count, and measurement method with results.
+
 ## Acceptance checklist
 
 - [ ] All eight journeys are replayable from deterministic scenarios.

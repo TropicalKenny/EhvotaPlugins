@@ -30,14 +30,14 @@ Use a charcoal/navy base, a cool analytical identity for live/reference comparis
 
 See `docs/UI_UX_RESEARCH.md` and `docs/DESIGN_SYSTEM.md`.
 
-## D-005 — JUCE dependency remains unconfigured pending licence acceptance
+## D-005 — Use JUCE 8 Starter with JUCE 8.0.9 pinned
 
 Date: 2026-07-23
-Status: Pending user decision
+Status: Accepted
 
-Current official material identifies JUCE 8 licensing tiers and an EULA that applies when downloading or using the framework. The current official release page showed JUCE 8.0.9 during research. Do not fetch, vendor, or imply acceptance until the user selects an appropriate licence path.
+The user explicitly accepted the JUCE 8 EULA and selected JUCE 8 Starter on 2026-07-23.
 
-Once accepted, pin an exact reviewed JUCE revision. Do not follow an unbounded branch.
+Pin the official JUCE 8.0.9 tag at commit `f72bad64d29715216226685810c5196bd0d79d77` as `third_party/JUCE`. The tag and commit were verified directly against the official GitHub remote. CMake uses the submodule by default and permits an explicit `JUCE_ROOT` override. It never downloads JUCE or accepts a licence during configuration.
 
 ## D-006 — Inno Setup remains the installer default
 
