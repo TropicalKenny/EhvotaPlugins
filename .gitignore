@@ -1,0 +1,69 @@
+# Build systems and IDEs
+/build/
+/build-*/
+/out/
+/.vs/
+/.vscode/
+/.idea/
+CMakeUserPresets.json
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+
+# Generated and review artefacts
+/generated/
+/artifacts/
+/packages/
+/staging/
+Testing/
+compile_commands.json
+
+# CMake and compiler output
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+*.vst3/
+
+# Local caches and logs
+__pycache__/
+*.pyc
+*.log
+*.tmp
+*.bak
+
+# Audio and model data are never source-controlled by default
+*.wav
+*.aif
+*.aiff
+*.flac
+*.mp3
+*.ogg
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Signing material and local secret configuration
+*.pfx
+*.p12
+*.pem
+*.key
+*.cer
+*.crt
+*.pvk
+*.snk
+*.env
+.env.*
+/local-config/
+/secrets/
