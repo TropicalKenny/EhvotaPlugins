@@ -1,6 +1,6 @@
 # Build and test
 
-Status: JUCE target and portable tests defined; Windows execution remains pending.
+Status: JUCE target, portable tests, and Windows-native UI capture workflow defined; Windows execution remains pending.
 
 ## Supported product environment
 
@@ -70,6 +70,15 @@ cmake --build --preset windows-msvc-debug --target EhvotaUIDemo
 
 Exact output paths must be updated from observed CMake output rather than assumed.
 
+The preview also accepts deterministic launch options. Long options use `=`:
+
+```powershell
+& '.\build\windows-msvc\apps\ui-preview\EhvotaUIDemo_artefacts\Debug\Ehvota UI Preview.exe' `
+  --scenario=compare-chorus --width=1180 --height=760
+```
+
+The path above is JUCE's expected multi-config layout, not a confirmed path on this machine. If it differs, use the executable path printed by the MSVC build. Supported logical content dimensions are 720–1920 by 500–1200. An unknown scenario, option, or invalid dimension exits with code 2.
+
 ## JUCE dependency
 
 The user accepted JUCE 8 Starter and the JUCE 8 EULA on 2026-07-23. The repository pins JUCE 8.0.9 at commit:
@@ -112,6 +121,44 @@ Keyboard/accessibility:
 7. Test high contrast and reduced-motion behavior.
 
 Review artefacts belong under `generated/ui-review/` and must not enter production binaries.
+
+### Repeatable native screenshot capture
+
+`tools/capture-ui-review.ps1` launches a deterministic scenario, verifies the actual per-window DPI with Windows APIs, brings the native window to the foreground, captures its visible Windows pixels, rejects clipped windows, and writes SHA-256-backed metadata. It does not change display settings and it does not treat an off-screen JUCE image as DPI evidence.
+
+From Developer PowerShell, first locate the built executable:
+
+```powershell
+$preview = Get-ChildItem .\build\windows-msvc -Filter '*.exe' -Recurse |
+  Where-Object Name -eq 'Ehvota UI Preview.exe' |
+  Select-Object -First 1
+
+if ($null -eq $preview) { throw 'Ehvota UI Preview.exe was not found.' }
+```
+
+At each Windows display scale, run the compact DPI matrix:
+
+```powershell
+.\tools\capture-ui-review.ps1 `
+  -Executable $preview.FullName `
+  -ExpectedScalePercent 100 `
+  -Matrix Dpi
+```
+
+Repeat with `125`, `150`, `175`, and `200` only after setting Windows Display scaling to that exact value. The script fails if the preview opens on a display with a different per-window DPI. `Dpi` captures minimum-size RefHub, RefTime, and Stem Prep examples and is intended for constrained displays.
+
+At 100%, capture all journeys, required states, and representative compact/wide layouts:
+
+```powershell
+.\tools\capture-ui-review.ps1 `
+  -Executable $preview.FullName `
+  -ExpectedScalePercent 100 `
+  -Matrix Full
+```
+
+`Core` captures the eight primary journeys plus representative compact/wide layouts. `Full` adds every required state. Standard/wide captures at higher scaling require enough physical desktop space; clipped native windows fail rather than producing misleading evidence. Outputs are placed in a timestamped directory below `generated\ui-review`.
+
+The automated images supplement, but do not replace, continuous resize, mixed-DPI movement, keyboard-only, Narrator, Accessibility Insights, high-contrast, reduced-motion, and foreground/occlusion review.
 
 ## VST3 development staging
 

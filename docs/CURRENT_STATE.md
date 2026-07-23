@@ -4,7 +4,7 @@ Last verified: 2026-07-23
 
 ## Summary
 
-Ehvota's Bundle is in Phase 0/1 foundation work. The workspace began empty. It now has a CMake workspace, portable timing/view-model libraries, deterministic tests, and source for the Windows-only JUCE `EhvotaUIDemo` target. The UI target has not been compiled because JUCE is intentionally unconfigured pending licence acceptance and the current host is not Windows.
+Ehvota's Bundle is in Phase 0/1 foundation work. The workspace began empty. It now has a CMake workspace, portable timing/view-model libraries, deterministic tests, and source for the Windows-only JUCE `EhvotaUIDemo` target. JUCE 8 Starter/EULA acceptance is recorded and JUCE 8.0.9 is pinned. The UI target has not been linked or run because the current host is not Windows.
 
 There is no production DSP, VST3, installer, stem model, signing workflow, or release artefact.
 
@@ -42,12 +42,13 @@ Consequences:
 - The deterministic scenario catalogue now covers all mandatory UI validation states, including empty/missing/invalid reference states, capture failure, proposal applied, unsupported bridge, high CPU, model licence failure, safe cancellation, and installer repair.
 - Responsive breakpoints are implemented in a dependency-free layout policy with boundary tests.
 - A compile-only C++20 check against the pinned JUCE headers passed for all shared UI and preview translation units with `-Wall -Wextra -Wpedantic`. This proves source/API syntax on the current compiler only; it is not a linked executable or Windows evidence.
+- The preview accepts validated deterministic scenario and logical-size launch options for repeatable review.
+- `tools/capture-ui-review.ps1` defines a native Windows capture matrix that verifies per-window DPI, rejects clipped/occluded windows, and records hashes and build metadata. The script remains unexecuted because PowerShell and Windows are unavailable on this host.
 - JUCE pinning and UI-hardening commit: `8eb7763` (`feat: pin JUCE and harden UI preview`).
 
 ## Active work
 
 - Verify current first-party JUCE, VST3, Windows, FL Studio, and Inno Setup requirements.
-- Resolve the JUCE licence decision before fetching or building the framework.
 - Run the Windows audit script and record the intended toolchain.
 - Configure and compile the pinned JUCE UI target with MSVC on Windows.
 - Exercise and refine Ehvota UI Preview on Windows before screenshots or approval.

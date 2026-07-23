@@ -125,6 +125,24 @@ PreviewComponent::PreviewComponent()
     scenarioSelector_.setSelectedId(1, juce::sendNotificationSync);
 }
 
+bool PreviewComponent::selectScenarioById(const std::string_view scenarioId)
+{
+    const auto& scenarios = preview::allScenarios();
+    const auto match = std::find_if(
+        scenarios.begin(),
+        scenarios.end(),
+        [scenarioId](const preview::Scenario& candidate) {
+            return candidate.id == scenarioId;
+        });
+
+    if (match == scenarios.end())
+        return false;
+
+    const auto index = static_cast<int>(std::distance(scenarios.begin(), match));
+    scenarioSelector_.setSelectedId(index + 1, juce::sendNotificationSync);
+    return scenario_ == &*match;
+}
+
 void PreviewComponent::loadScenario(const int scenarioIndex)
 {
     const auto& scenarios = preview::allScenarios();

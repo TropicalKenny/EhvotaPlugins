@@ -6,6 +6,7 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace ehvota::previewapp {
@@ -18,6 +19,8 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     bool keyPressed(const juce::KeyPress&) override;
+
+    [[nodiscard]] bool selectScenarioById(std::string_view scenarioId);
 
 private:
     void loadScenario(int scenarioIndex);

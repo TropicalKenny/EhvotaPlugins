@@ -194,6 +194,7 @@ Acceptance criteria:
 - [ ] Run Windows builds and tests.
 - [ ] Verify continuous resize, DPI, keyboard, long labels, accessibility basics, and major states.
 - [ ] Capture required screenshots and an interaction recording where practical.
+  Deterministic launch controls and a native Windows/DPI capture matrix now exist; execution remains pending on Windows.
 - [ ] Complete the UI checklist and update `docs/UI_CONTRACT.md`.
 - [ ] Review the complete diff and commit the UI phase.
 - [ ] Present evidence and request explicit user approval.
@@ -383,12 +384,13 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 - Fixed JUCE string-boundary compile errors found by the first compile-only check; the second check and a warnings-enabled repeat passed.
 - Committed the accepted JUCE pin, complete mandatory state catalogue, responsive/scrolling hardening, product-specific hero components, accessibility metadata, Windows audit fixes, and documentation as `8eb7763` (`feat: pin JUCE and harden UI preview`).
 - Windows/JUCE compilation, rendered UI, DPI/accessibility, FL Studio, installer, and signing remain unverified.
+- Added validated preview command-line selection for deterministic scenario and logical content size.
+- Added `tools/capture-ui-review.ps1`, which captures the actual foreground Windows window, verifies per-window DPI, rejects clipping, and records a manifest with hashes. Its `Dpi`, `Core`, and `Full` matrices remain unexecuted on this Linux host.
 
 ## Unresolved questions
 
 - What exact Windows machine/toolchain will be used for the mandatory Windows evidence?
 - Is the current Linux workspace a temporary staging location that will later be opened by Codex on Windows?
-- Which current JUCE licence path is acceptable for personal use and possible later distribution?
 - Which UI typeface and icon set meet licence and legibility requirements?
 - Which final visual direction will the user approve after the interactive preview?
 - Which model/runtime combination will pass both licensing and controlled Stem Prep benchmarks?
