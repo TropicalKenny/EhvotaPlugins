@@ -30,12 +30,18 @@ void testScenarioCatalogue()
         std::cerr << "CATALOGUE: " << error << '\n';
 
     expect(errors.empty(), "preview scenario catalogue must be valid");
-    expect(ehvota::preview::allScenarios().size() >= 21,
-           "catalogue must include eight journeys plus all mandatory state fixtures");
+    expect(ehvota::preview::allScenarios().size() >= 24,
+           "catalogue must include eight journeys plus mandatory and contract state fixtures");
     expect(ehvota::preview::findScenario("proposal-review") != nullptr,
            "proposal review fixture must exist");
     expect(ehvota::preview::findScenario("render-safe") != nullptr,
            "render-safe fixture must exist");
+    expect(ehvota::preview::findScenario("library-loading") != nullptr,
+           "bounded loading fixture must exist");
+    expect(ehvota::preview::findScenario("links-stale") != nullptr,
+           "stale-data fixture must exist");
+    expect(ehvota::preview::findScenario("long-labels") != nullptr,
+           "long-label stress fixture must exist");
     expect(ehvota::preview::findScenario("not-a-scenario") == nullptr,
            "unknown fixture must not resolve");
 }

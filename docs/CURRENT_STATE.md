@@ -39,11 +39,12 @@ Consequences:
 - Initial foundation commit: `d816aab` (`chore: establish UI-first project foundation`).
 - The user accepted JUCE 8 Starter and the JUCE 8 EULA on 2026-07-23.
 - JUCE 8.0.9 is pinned as a submodule at `f72bad64d29715216226685810c5196bd0d79d77`.
-- The deterministic scenario catalogue now covers all mandatory UI validation states, including empty/missing/invalid reference states, capture failure, proposal applied, unsupported bridge, high CPU, model licence failure, safe cancellation, and installer repair.
+- The deterministic scenario catalogue now contains 24 fixtures. It covers all mandatory UI validation states plus bounded loading, stale-data preservation, and long-label/path stress.
 - Responsive breakpoints are implemented in a dependency-free layout policy with boundary tests.
 - A compile-only C++20 check against the pinned JUCE headers passed for all shared UI and preview translation units with `-Wall -Wextra -Wpedantic`. This proves source/API syntax on the current compiler only; it is not a linked executable or Windows evidence.
 - The preview accepts validated deterministic scenario and logical-size launch options for repeatable review.
 - A dependency-free journey catalogue now covers all eight required workflows. The preview-only JUCE journey strip exposes labelled Back/Next controls, boundary states, `Ctrl+Alt+Left` / `Ctrl+Alt+Right`, and deterministic `--step` launch selection. Portable catalogue/navigation tests pass; rendered Windows exercise remains pending.
+- The persistent comparison context is now a labelled accessible component with the complete value retained in its tooltip and accessibility description instead of paint-only text.
 - `tools/capture-ui-review.ps1` defines a native Windows capture matrix that verifies per-window DPI, rejects clipped/occluded windows, and records hashes and build metadata. The script remains unexecuted because PowerShell and Windows are unavailable on this host.
 - JUCE pinning and UI-hardening commit: `8eb7763` (`feat: pin JUCE and harden UI preview`).
 

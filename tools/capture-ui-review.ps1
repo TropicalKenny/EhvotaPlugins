@@ -108,6 +108,9 @@ $requiredStates = @(
     'high-cpu',
     'model-license-error',
     'stem-prep-cancelled',
+    'library-loading',
+    'links-stale',
+    'long-labels',
     'installer-repair'
 )
 

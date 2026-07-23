@@ -188,6 +188,7 @@ Acceptance criteria:
 - [ ] Compile and review the shared production UI component library on Windows. Source exists; JUCE/Windows build is unverified.
 - [x] Run a non-product compile-only C++20 syntax/warning check against pinned JUCE headers. All UI/preview translation units passed with `-Wall -Wextra -Wpedantic`; no link, render, or Windows claim is implied.
 - [x] Create deterministic mock/replay view models for all eight journeys and required low-confidence/render-safe/missing-model states.
+  The catalogue now contains 24 fixtures, including bounded loading, stale-data preservation, and long-label/path stress.
 - [ ] Build Ehvota UI Preview using those shared components. Target/source exists; no JUCE/Windows build evidence yet.
 - [ ] Demonstrate every required screen and journey.
   All eight guided journey catalogues, preview replay UI, keyboard navigation, and deterministic step launch selection now exist and pass portable tests; Windows rendering and human exercise remain pending.
@@ -390,6 +391,7 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 - Added a validated, dependency-free step catalogue for all eight primary journeys and a preview-only JUCE replay strip with labelled Back/Next controls, keyboard navigation, and deterministic `--step` launch selection.
 - Extended Windows capture preparation with a `Journeys` matrix for every replay step. The PowerShell path remains unexecuted on this Linux host.
 - Re-ran the portable build and tests after journey replay integration: 1/1 CTest target passed. A warnings-enabled C++20 compile-only check also passed for the new journey model, preview-only component, shared UI, and preview application sources.
+- Expanded deterministic UI coverage to 24 scenarios with loading, stale-data, and long-label fixtures; promoted the persistent comparison context from paint-only text to a labelled component with full tooltip/accessibility text.
 
 ## Unresolved questions
 

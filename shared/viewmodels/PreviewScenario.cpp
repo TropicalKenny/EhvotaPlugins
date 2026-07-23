@@ -420,6 +420,63 @@ const std::vector<Scenario> scenarios {
         { "Restart River Glass", "Start another queued job", "Open source folder", "Cancellation is recorded in local history" }
     },
     {
+        "library-loading",
+        "Required state · Loading",
+        "Scanning the local reference library",
+        "Previously validated references remain available while the bounded local scan reports deterministic progress.",
+        refHub,
+        "Library",
+        "Library scan",
+        "Documents\\Ehvota's Bundle\\References",
+        { { "SCANNING 14 / 23", proposed }, { "LOCAL ONLY", positive }, { "CANCEL SAFE", neutral } },
+        {
+            { "Scan progress", "14 of 23 direct child folders inspected",
+              { { "Ready", "11", "Previously validated references remain usable", positive },
+                { "Validating", "1", "River Glass · checking equal duration", proposed },
+                { "Needs mapping", "2", "No uncertain role was guessed", caution } } }
+        },
+        "Current folder",
+        { "River Glass", "Reading metadata only", "Cancel keeps prior results", "No audio upload or network request" }
+    },
+    {
+        "links-stale",
+        "Required state · Stale data",
+        "Music Bus measurements are stale",
+        "The last valid values remain visible and timestamped, but they are not presented as current evidence or used for proposals.",
+        refHub,
+        "Links",
+        "Ayo Nights",
+        "Chorus 2 ↔ Main Chorus",
+        { { "STALE 32.8 s", caution }, { "LAST VALID PRESERVED", positive }, { "PROPOSALS PAUSED", neutral } },
+        {
+            { "Music Bus · post", "Connection stopped updating after a transport jump",
+              { { "Last valid update", "14:52:11", "32.8 seconds ago", caution },
+                { "Last measured level", "−18.4 LUFS-S", "Visible but explicitly stale", neutral },
+                { "Proposal eligibility", "Paused", "Requires current stable capture evidence", positive } } }
+        },
+        "Recovery",
+        { "Check RefTap connection", "Resume transport", "Capture again after health returns", "Do not overwrite the last valid value" }
+    },
+    {
+        "long-labels",
+        "Required state · Long labels",
+        "A deliberately long reference name remains distinguishable without breaking the workspace",
+        "This fixture stresses truncation, tooltips, accessible full names, and localization-safe spacing at every responsive layout.",
+        refHub,
+        "Library",
+        "The Midnight Rehearsal — Extended Live Arrangement with Alternate Vocal and Percussion Mix",
+        "Final Chorus with Extended Call-and-Response ↔ Reference Final Chorus Alternate Take",
+        { { "LONG NAME TEST", proposed }, { "FULL NAME ACCESSIBLE", positive } },
+        {
+            { "Reference identity", "Visible text may elide; accessible text and tooltip retain the full value",
+              { { "Folder", "Ready", "Documents\\Ehvota's Bundle\\References\\The Midnight Rehearsal Extended Live Arrangement", positive },
+                { "Selected section", "Final Chorus", "Extended Call-and-Response and Percussion Breakdown", reference },
+                { "Mapping preset", "Festival mix", "Drums, Bass, Lead Vocals, Backing Vocals, Music and Effects", neutral } } }
+        },
+        "Text stress review",
+        { "No control overlaps", "No essential action disappears", "Full names remain available", "Test compact, standard and wide layouts" }
+    },
+    {
         "installer-repair",
         "Required state · Installer repair guidance",
         "A local component needs repair",
@@ -505,6 +562,9 @@ std::vector<std::string> validateScenarioCatalogue()
         "model-missing",
         "model-license-error",
         "stem-prep-cancelled",
+        "library-loading",
+        "links-stale",
+        "long-labels",
         "installer-repair"
     };
 

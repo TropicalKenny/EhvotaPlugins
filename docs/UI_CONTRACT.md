@@ -152,12 +152,14 @@ These are budgets, not current claims. Record hardware, Windows build, display s
 - [ ] All eight journeys are replayable from deterministic scenarios.
   The eight validated step catalogues, navigation source, and deterministic launch option exist; rendered Windows exercise remains pending.
 - [ ] Empty, loading, offline, error, degraded, stale, render, bridged/unsupported, high-CPU, missing-model, licence-error, cancellation, and repair states exist where relevant.
+  Deterministic source fixtures now cover this state set, including dedicated bounded-loading and stale-data examples; rendered Windows review remains pending.
 - [ ] Minimum/default/wide layouts work without overlap or unreachable controls.
 - [ ] 100%, 125%, 150%, 175%, and 200% Windows scaling evidence exists.
 - [ ] Mixed-DPI movement and live scale change are tested where hardware permits.
 - [ ] Keyboard-only completion succeeds for primary actions.
 - [ ] Focus, exact entry, mouse wheel, fine adjustment, reset, undo/redo, A/B, help, and tooltips are verified.
 - [ ] Long names and Windows paths do not destroy layout.
+  A dedicated long-label fixture and accessible full comparison-context label exist; compact/default/wide Windows rendering remains pending.
 - [ ] High contrast, color-blind cues, reduced motion, and Narrator basics are reviewed.
 - [ ] Analyzer rendering meets the established UI budget without audio-thread impact.
 - [ ] Screenshots and review metadata exist under generated artefacts.

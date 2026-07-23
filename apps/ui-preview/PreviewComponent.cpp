@@ -52,6 +52,14 @@ PreviewComponent::PreviewComponent()
         loadScenario(scenarioSelector_.getSelectedItemIndex());
     };
 
+    addAndMakeVisible(comparisonContextLabel_);
+    comparisonContextLabel_.setJustificationType(juce::Justification::centredLeft);
+    comparisonContextLabel_.setFont(ui::font(14.0f, true));
+    comparisonContextLabel_.setColour(
+        juce::Label::textColourId,
+        juce::Colour(ui::colour::textPrimary));
+    comparisonContextLabel_.setMinimumHorizontalScale(0.86f);
+
     for (auto* button : { &menuButton_, &mixButton_, &referenceButton_, &loudnessMatchButton_,
              &captureButton_, &blindButton_, &primaryActionButton_, &secondaryActionButton_,
              &journeyBackButton_, &journeyNextButton_ }) {
@@ -171,6 +179,15 @@ void PreviewComponent::loadScenario(const int scenarioIndex)
     signalGraph_.setScenario(scenario_->id);
     static_cast<void>(journeyReplay_.selectForScenario(scenario_->id));
     transientStatus_ = "Deterministic preview data · No audio is processed";
+    const auto comparisonContext = juce::String(scenario_->reference)
+        + "  ·  " + juce::String(scenario_->sectionPair);
+    comparisonContextLabel_.setText(comparisonContext, juce::dontSendNotification);
+    comparisonContextLabel_.setTooltip(comparisonContext);
+    comparisonContextLabel_.setTitle("Reference and section context");
+    comparisonContextLabel_.setDescription(comparisonContext);
+    setTitle(areaName(scenario_->area) + " preview: " + juce::String(scenario_->title));
+    setDescription(
+        juce::String(scenario_->description) + ". Reference context: " + comparisonContext);
 
     if (scenario_->id == "proposal-review") {
         primaryActionButton_.setButtonText("APPLY");
@@ -335,17 +352,6 @@ void PreviewComponent::paint(juce::Graphics& graphics)
     graphics.setColour(juce::Colour(ui::colour::borderSubtle));
     graphics.drawRoundedRectangle(comparison.toFloat().reduced(0.5f), 8.0f, 1.0f);
 
-    auto comparisonText = comparison.reduced(14, 0);
-    if (scenario_->area == preview::ProductArea::refHub)
-        comparisonText.removeFromRight(isCompact() ? 336 : 480);
-    graphics.setColour(juce::Colour(ui::colour::textPrimary));
-    graphics.setFont(ui::font(14.0f, true));
-    graphics.drawFittedText(
-        juce::String(scenario_->reference) + "  ·  " + scenario_->sectionPair,
-        comparisonText,
-        juce::Justification::centredLeft,
-        1);
-
     bounds.removeFromTop(10);
     auto footer = bounds.removeFromBottom(footerHeight);
     graphics.setColour(juce::Colour(ui::colour::base));
@@ -430,6 +436,7 @@ void PreviewComponent::resized()
         controls.removeFromLeft(isCompact() ? 4 : 6);
         blindButton_.setBounds(controls.removeFromLeft(isCompact() ? 54 : 64));
     }
+    comparisonContextLabel_.setBounds(comparison.reduced(6, 0));
 
     bounds.removeFromTop(10);
     bounds.removeFromBottom(footerHeight);

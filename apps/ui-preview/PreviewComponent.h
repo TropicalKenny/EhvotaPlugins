@@ -36,6 +36,7 @@ private:
     [[nodiscard]] bool isWide() const;
 
     juce::ComboBox scenarioSelector_;
+    juce::Label comparisonContextLabel_;
     juce::TextButton menuButton_ { "VIEW" };
     juce::TextButton mixButton_ { "MIX" };
     juce::TextButton referenceButton_ { "REFERENCE" };
