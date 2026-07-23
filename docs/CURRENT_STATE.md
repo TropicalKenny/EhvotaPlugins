@@ -36,6 +36,7 @@ Consequences:
 - Deterministic fixtures cover all eight primary journeys plus low-confidence, Render Safe, and missing-model states.
 - `cmake --preset portable-tests`, `cmake --build --preset portable-tests`, and `ctest --preset portable-tests` passed on 2026-07-23.
 - The tests cover scenario-catalogue completeness, exact RefTime calculations, invalid BPM rejection, and candidate token contrast thresholds.
+- Initial foundation commit: `d816aab` (`chore: establish UI-first project foundation`).
 
 ## Active work
 

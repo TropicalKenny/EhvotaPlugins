@@ -374,6 +374,7 @@ Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repos
 - Added the CMake workspace, Windows-only JUCE UI Preview source, shared UI source, deterministic scenario catalogue, and RefTime calculation core.
 - Verified `cmake --preset portable-tests`, `cmake --build --preset portable-tests`, and `ctest --preset portable-tests`: 1/1 test passed.
 - Verified a fresh ephemeral OpenAI GPT Codex session loaded root `AGENTS.md`; it reproduced the first repository rule while explicitly prohibited from reading files. The global Stop hook then reported a failure, with no repository mutation.
+- Reviewed and committed the initial Phase 0/1 foundation as `d816aab` (`chore: establish UI-first project foundation`).
 - Windows/JUCE compilation, rendered UI, DPI/accessibility, FL Studio, installer, and signing remain unverified.
 
 ## Unresolved questions
