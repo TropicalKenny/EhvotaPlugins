@@ -600,7 +600,7 @@ void PreviewComponent::paint(juce::Graphics& graphics)
 
 void PreviewComponent::resized()
 {
-    if (scenario_ == nullptr)
+    if (scenario_ == nullptr || getWidth() <= 0 || getHeight() <= 0)
         return;
 
     auto bounds = getLocalBounds().reduced(outerPadding);

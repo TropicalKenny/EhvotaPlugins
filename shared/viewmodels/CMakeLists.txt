@@ -3,6 +3,8 @@ add_library(EhvotaViewModels STATIC
     JourneyReplay.h
     LayoutPolicy.cpp
     LayoutPolicy.h
+    PreviewLaunchOptions.cpp
+    PreviewLaunchOptions.h
     PreviewScenario.cpp
     PreviewScenario.h
     ShellPresentation.cpp

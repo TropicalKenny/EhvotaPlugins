@@ -2,6 +2,7 @@
 #include "shared/ui/DesignTokenValues.h"
 #include "shared/viewmodels/JourneyReplay.h"
 #include "shared/viewmodels/LayoutPolicy.h"
+#include "shared/viewmodels/PreviewLaunchOptions.h"
 #include "shared/viewmodels/PreviewScenario.h"
 #include "shared/viewmodels/ShellPresentation.h"
 
@@ -89,6 +90,96 @@ void testJourneyReplay()
            "required state fixtures must not masquerade as primary journeys");
     expect(replay.currentStep() == nullptr && replay.totalSteps() == 0,
            "selecting a non-journey fixture must clear journey replay state");
+}
+
+void testPreviewLaunchOptions()
+{
+    using ehvota::preview::defaultLaunchHeight;
+    using ehvota::preview::defaultLaunchScenarioId;
+    using ehvota::preview::defaultLaunchWidth;
+    using ehvota::preview::maximumLaunchHeight;
+    using ehvota::preview::maximumLaunchStep;
+    using ehvota::preview::maximumLaunchWidth;
+    using ehvota::preview::minimumLaunchHeight;
+    using ehvota::preview::minimumLaunchWidth;
+    using ehvota::preview::parseLaunchOptions;
+
+    const auto empty = parseLaunchOptions({});
+    expect(empty.options.has_value(), "empty launch arguments must succeed");
+    expect(defaultLaunchScenarioId() == "reference-ready",
+           "default launch scenario must be the intended reference-ready fixture");
+    expect(empty.options.has_value()
+               && empty.options->scenarioId == defaultLaunchScenarioId()
+               && ehvota::preview::findScenario(empty.options->scenarioId) != nullptr,
+           "empty launch arguments must select a registered default scenario");
+    expect(empty.options.has_value()
+               && empty.options->contentWidth == defaultLaunchWidth
+               && empty.options->contentHeight == defaultLaunchHeight
+               && !empty.options->journeyStep.has_value(),
+           "empty launch arguments must use deterministic default size and no step");
+
+    const auto explicitScenario = parseLaunchOptions({ "--scenario=compare-chorus" });
+    expect(explicitScenario.options.has_value()
+               && explicitScenario.options->scenarioId == "compare-chorus",
+           "valid explicit scenario must succeed");
+
+    const auto invalidScenario = parseLaunchOptions({ "--scenario=not-a-scenario" });
+    expect(!invalidScenario.options.has_value()
+               && invalidScenario.error == "Unknown preview scenario: not-a-scenario",
+           "invalid scenario must fail clearly");
+
+    const auto unknownOption = parseLaunchOptions({ "--unknown-option" });
+    expect(!unknownOption.options.has_value()
+               && unknownOption.error == "Unknown option: --unknown-option",
+           "unknown option must fail clearly");
+
+    const auto missingScenarioValue = parseLaunchOptions({ "--scenario" });
+    expect(!missingScenarioValue.options.has_value()
+               && missingScenarioValue.error == "--scenario requires a value using --scenario=<id>.",
+           "scenario option without a value must fail");
+
+    const auto validWidth = parseLaunchOptions({ "--width=1180" });
+    expect(validWidth.options.has_value() && validWidth.options->contentWidth == 1180,
+           "valid width must succeed");
+
+    const auto widthBelowMinimum = parseLaunchOptions(
+        { "--width=" + std::to_string(minimumLaunchWidth - 1) });
+    expect(!widthBelowMinimum.options.has_value(),
+           "width below minimum must fail");
+
+    const auto widthAboveMaximum = parseLaunchOptions(
+        { "--width=" + std::to_string(maximumLaunchWidth + 1) });
+    expect(!widthAboveMaximum.options.has_value(),
+           "width above maximum must fail");
+
+    const auto validHeight = parseLaunchOptions({ "--height=760" });
+    expect(validHeight.options.has_value() && validHeight.options->contentHeight == 760,
+           "valid height must succeed");
+
+    const auto invalidHeight = parseLaunchOptions(
+        { "--height=" + std::to_string(minimumLaunchHeight - 1) });
+    expect(!invalidHeight.options.has_value(),
+           "invalid height must fail");
+
+    const auto invalidHeightAboveMaximum = parseLaunchOptions(
+        { "--height=" + std::to_string(maximumLaunchHeight + 1) });
+    expect(!invalidHeightAboveMaximum.options.has_value(),
+           "height above maximum must fail");
+
+    const auto validStep = parseLaunchOptions({ "--scenario=compare-chorus", "--step=4" });
+    expect(validStep.options.has_value()
+               && validStep.options->journeyStep.has_value()
+               && *validStep.options->journeyStep == 4,
+           "valid step must succeed");
+
+    const auto invalidStep = parseLaunchOptions({ "--step=0" });
+    expect(!invalidStep.options.has_value(),
+           "invalid step must fail");
+
+    const auto invalidStepAboveMaximum = parseLaunchOptions(
+        { "--step=" + std::to_string(maximumLaunchStep + 1) });
+    expect(!invalidStepAboveMaximum.options.has_value(),
+           "step above maximum must fail");
 }
 
 void testRefTimeCalculation()
@@ -246,6 +337,7 @@ int main()
 {
     testScenarioCatalogue();
     testJourneyReplay();
+    testPreviewLaunchOptions();
     testRefTimeCalculation();
     testDesignTokenContrast();
     testLayoutPolicy();

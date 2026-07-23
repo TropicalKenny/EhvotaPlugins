@@ -67,3 +67,5 @@ __pycache__/
 .env.*
 /local-config/
 /secrets/
+build/
+.vs/
