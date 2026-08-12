@@ -55,3 +55,48 @@ jobs:
       - name: Run Windows deterministic tests
         shell: pwsh
         run: ctest --preset windows-msvc-debug
+
+      - name: Render coded approval snapshots
+        shell: pwsh
+        run: |
+          $preview = Get-ChildItem -Path build/windows-msvc -Recurse -File -Filter '*.exe' |
+            Where-Object { $_.Name -in @('Ehvota UI Preview.exe', 'EhvotaUIDemo.exe') } |
+            Select-Object -First 1
+          if (-not $preview) {
+            Write-Host 'Available Ehvota executables:'
+            Get-ChildItem -Path build/windows-msvc -Recurse -File -Filter '*.exe' |
+              Where-Object { $_.FullName -match 'Ehvota' } |
+              ForEach-Object { Write-Host $_.FullName }
+            throw 'Could not locate the built Ehvota UI Preview executable.'
+          }
+
+          $output = Join-Path $PWD 'generated/ci-ui-review'
+          New-Item -ItemType Directory -Path $output -Force | Out-Null
+
+          $captures = @(
+            @{ Scenario = 'compare-chorus'; Width = 1180; Height = 760; Name = '01-refhub-active-comparison.png' },
+            @{ Scenario = 'compare-chorus'; Width = 860; Height = 600; Name = '02-refhub-active-comparison-compact.png' },
+            @{ Scenario = 'mapping-disconnected'; Width = 1180; Height = 760; Name = '03-refhub-sources-mapping.png' },
+            @{ Scenario = 'reftime-120'; Width = 720; Height = 500; Name = '04-reftime.png' }
+          )
+
+          foreach ($capture in $captures) {
+            $env:EHVOTA_SNAPSHOT_PATH = Join-Path $output $capture.Name
+            & $preview.FullName "--scenario=$($capture.Scenario)" "--width=$($capture.Width)" "--height=$($capture.Height)"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Snapshot render failed for $($capture.Scenario) with exit code $LASTEXITCODE."
+            }
+            if (-not (Test-Path -LiteralPath $env:EHVOTA_SNAPSHOT_PATH)) {
+              throw "Snapshot was not created: $env:EHVOTA_SNAPSHOT_PATH"
+            }
+          }
+          Remove-Item Env:EHVOTA_SNAPSHOT_PATH -ErrorAction SilentlyContinue
+          Get-ChildItem $output | Select-Object Name, Length
+
+      - name: Upload coded UI approval snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ehvota-coded-ui-approval
+          path: generated/ci-ui-review/*.png
+          if-no-files-found: error
+          retention-days: 14
