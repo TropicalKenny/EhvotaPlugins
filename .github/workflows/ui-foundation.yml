@@ -1,0 +1,46 @@
+name: UI foundation
+
+on:
+  push:
+    branches:
+      - main
+      - feature/ableton-first-foundation
+  pull_request:
+
+jobs:
+  portable-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Configure portable tests
+        run: cmake --preset portable-tests
+
+      - name: Build portable tests
+        run: cmake --build --preset portable-tests
+
+      - name: Run portable tests
+        run: ctest --preset portable-tests
+
+  windows-ui-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout with JUCE
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure Windows UI
+        shell: pwsh
+        run: cmake --preset windows-msvc
+
+      - name: Build Windows UI and tests
+        shell: pwsh
+        run: cmake --build --preset windows-msvc-debug
+
+      - name: Run Windows deterministic tests
+        shell: pwsh
+        run: ctest --preset windows-msvc-debug
