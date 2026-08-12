@@ -11,6 +11,8 @@ add_library(EhvotaViewModels STATIC
     PreviewLaunchOptions.h
     PreviewScenario.cpp
     PreviewScenario.h
+    RefHubNavigation.cpp
+    RefHubNavigation.h
     ShellPresentation.cpp
     ShellPresentation.h
 )
