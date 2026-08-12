@@ -17,3 +17,22 @@ else()
 endif()
 
 add_test(NAME EhvotaUnitTests COMMAND EhvotaUnitTests)
+
+add_executable(EhvotaAbletonBridgeStateTests
+    AbletonBridgeStateTests.cpp
+)
+
+target_link_libraries(EhvotaAbletonBridgeStateTests
+    PRIVATE
+        EhvotaViewModels
+)
+
+target_compile_features(EhvotaAbletonBridgeStateTests PRIVATE cxx_std_20)
+
+if(MSVC)
+    target_compile_options(EhvotaAbletonBridgeStateTests PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(EhvotaAbletonBridgeStateTests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME EhvotaAbletonBridgeStateTests COMMAND EhvotaAbletonBridgeStateTests)
