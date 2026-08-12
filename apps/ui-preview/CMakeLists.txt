@@ -10,6 +10,8 @@ juce_generate_juce_header(EhvotaUIDemo)
 
 target_sources(EhvotaUIDemo
     PRIVATE
+        ApprovedRefHubPreview.cpp
+        ApprovedRefHubPreview.h
         JourneyProgressComponent.cpp
         JourneyProgressComponent.h
         Main.cpp
