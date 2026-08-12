@@ -1,4 +1,6 @@
 #include "ApprovedRefHubPreview.h"
+#include "ApprovedRefTimePreview.h"
+#include "ApprovedSourcesPreview.h"
 #include "PreviewComponent.h"
 
 #include "shared/ui/EhvotaLookAndFeel.h"
@@ -57,11 +59,18 @@ public:
 
         std::unique_ptr<juce::Component> content;
 
-        // The user-approved RefHub visual contract is now the authoritative Screen A.
-        // Keep the legacy deterministic preview available for the remaining journeys until
-        // Sources/Mapping and RefTime receive their equivalent approved production surfaces.
         if (options.scenarioId == "compare-chorus") {
             auto approved = std::make_unique<ehvota::previewapp::ApprovedRefHubPreview>();
+            approved->setSize(options.contentWidth, options.contentHeight);
+            content = std::move(approved);
+        }
+        else if (options.scenarioId == "mapping-disconnected") {
+            auto approved = std::make_unique<ehvota::previewapp::ApprovedSourcesPreview>();
+            approved->setSize(options.contentWidth, options.contentHeight);
+            content = std::move(approved);
+        }
+        else if (options.scenarioId == "reftime-120") {
+            auto approved = std::make_unique<ehvota::previewapp::ApprovedRefTimePreview>();
             approved->setSize(options.contentWidth, options.contentHeight);
             content = std::move(approved);
         }
