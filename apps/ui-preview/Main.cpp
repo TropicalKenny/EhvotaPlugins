@@ -1,3 +1,4 @@
+#include "ApprovedRefHubPreview.h"
 #include "PreviewComponent.h"
 
 #include "shared/ui/EhvotaLookAndFeel.h"
@@ -54,16 +55,29 @@ public:
             ehvota::preview::maximumLaunchWidth,
             ehvota::preview::maximumLaunchHeight);
 
-        auto content = std::make_unique<ehvota::previewapp::PreviewComponent>();
-        content->setSize(options.contentWidth, options.contentHeight);
-        if (!content->selectScenarioById(options.scenarioId))
-            throw std::invalid_argument("Unknown preview scenario: " + options.scenarioId);
-        if (options.journeyStep.has_value()
-            && !content->selectJourneyStep(static_cast<std::size_t>(*options.journeyStep))) {
-            throw std::invalid_argument(
-                "Journey step is unavailable for scenario "
-                + options.scenarioId + ": "
-                + std::to_string(*options.journeyStep));
+        std::unique_ptr<juce::Component> content;
+
+        // The user-approved RefHub visual contract is now the authoritative Screen A.
+        // Keep the legacy deterministic preview available for the remaining journeys until
+        // Sources/Mapping and RefTime receive their equivalent approved production surfaces.
+        if (options.scenarioId == "compare-chorus") {
+            auto approved = std::make_unique<ehvota::previewapp::ApprovedRefHubPreview>();
+            approved->setSize(options.contentWidth, options.contentHeight);
+            content = std::move(approved);
+        }
+        else {
+            auto legacy = std::make_unique<ehvota::previewapp::PreviewComponent>();
+            legacy->setSize(options.contentWidth, options.contentHeight);
+            if (!legacy->selectScenarioById(options.scenarioId))
+                throw std::invalid_argument("Unknown preview scenario: " + options.scenarioId);
+            if (options.journeyStep.has_value()
+                && !legacy->selectJourneyStep(static_cast<std::size_t>(*options.journeyStep))) {
+                throw std::invalid_argument(
+                    "Journey step is unavailable for scenario "
+                    + options.scenarioId + ": "
+                    + std::to_string(*options.journeyStep));
+            }
+            content = std::move(legacy);
         }
 
         preview_ = content.get();
@@ -79,7 +93,7 @@ public:
     }
 
 private:
-    ehvota::previewapp::PreviewComponent* preview_ { nullptr };
+    juce::Component* preview_ { nullptr };
 };
 
 class PreviewApplication final : public juce::JUCEApplication {
