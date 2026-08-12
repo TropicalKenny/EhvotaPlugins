@@ -12,6 +12,10 @@ target_sources(EhvotaUIDemo
     PRIVATE
         ApprovedRefHubPreview.cpp
         ApprovedRefHubPreview.h
+        ApprovedSourcesPreview.cpp
+        ApprovedSourcesPreview.h
+        ApprovedRefTimePreview.cpp
+        ApprovedRefTimePreview.h
         JourneyProgressComponent.cpp
         JourneyProgressComponent.h
         Main.cpp
