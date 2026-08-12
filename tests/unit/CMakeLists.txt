@@ -36,3 +36,22 @@ else()
 endif()
 
 add_test(NAME EhvotaAbletonBridgeStateTests COMMAND EhvotaAbletonBridgeStateTests)
+
+add_executable(EhvotaLevelMatchStateTests
+    LevelMatchStateTests.cpp
+)
+
+target_link_libraries(EhvotaLevelMatchStateTests
+    PRIVATE
+        EhvotaViewModels
+)
+
+target_compile_features(EhvotaLevelMatchStateTests PRIVATE cxx_std_20)
+
+if(MSVC)
+    target_compile_options(EhvotaLevelMatchStateTests PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(EhvotaLevelMatchStateTests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME EhvotaLevelMatchStateTests COMMAND EhvotaLevelMatchStateTests)
