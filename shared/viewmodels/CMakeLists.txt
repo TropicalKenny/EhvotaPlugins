@@ -1,4 +1,6 @@
 add_library(EhvotaViewModels STATIC
+    AbletonBridgeState.cpp
+    AbletonBridgeState.h
     JourneyReplay.cpp
     JourneyReplay.h
     LayoutPolicy.cpp
