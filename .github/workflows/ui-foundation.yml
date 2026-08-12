@@ -46,7 +46,7 @@ jobs:
 
       - name: Configure Windows UI with MSVC
         shell: pwsh
-        run: cmake --preset windows-msvc -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe
+        run: cmake --preset windows-msvc
 
       - name: Build Windows UI and tests
         shell: pwsh
