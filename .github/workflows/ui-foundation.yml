@@ -33,9 +33,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Configure Windows UI
+      - name: Initialise MSVC x64 environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Verify MSVC toolchain
         shell: pwsh
-        run: cmake --preset windows-msvc
+        run: |
+          Get-Command cl.exe
+          cl.exe 2>&1 | Select-Object -First 3
+
+      - name: Configure Windows UI with MSVC
+        shell: pwsh
+        run: cmake --preset windows-msvc -DCMAKE_C_COMPILER=cl.exe -DCMAKE_CXX_COMPILER=cl.exe
 
       - name: Build Windows UI and tests
         shell: pwsh
