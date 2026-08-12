@@ -55,3 +55,22 @@ else()
 endif()
 
 add_test(NAME EhvotaLevelMatchStateTests COMMAND EhvotaLevelMatchStateTests)
+
+add_executable(EhvotaRefHubNavigationTests
+    RefHubNavigationTests.cpp
+)
+
+target_link_libraries(EhvotaRefHubNavigationTests
+    PRIVATE
+        EhvotaViewModels
+)
+
+target_compile_features(EhvotaRefHubNavigationTests PRIVATE cxx_std_20)
+
+if(MSVC)
+    target_compile_options(EhvotaRefHubNavigationTests PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(EhvotaRefHubNavigationTests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME EhvotaRefHubNavigationTests COMMAND EhvotaRefHubNavigationTests)
