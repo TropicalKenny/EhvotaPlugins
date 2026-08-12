@@ -1,14 +1,17 @@
 # Ehvota's Bundle — Living Execution Plan
 
-Last updated: 2026-07-23
-Plan status: Phase 0 in progress
-Authoritative product specification: the initial "EHVOTA'S BUNDLE — MASTER CODEX GOAL" supplied by the user.
+Last updated: 2026-08-12
+Plan status: Phase 1 UI refinement in progress; production DSP remains blocked
+Primary host decision: Ableton Live 12 Suite on Windows x64
+Secondary future compatibility target: FL Studio
 
 ## Product goal
 
-Build **Ehvota's Bundle**, a Windows 10/11, 64-bit VST3 audio-plugin and utility suite for unbridged 64-bit use in FL Studio. The suite will combine reference playback and comparison, full-mix and stem-to-bus analysis, section-aware tonal/dynamic/spatial analysis, connected EQ and compressor control, tempo-synchronised timing, clean and optional analogue-coloured processing, and an offline local-AI stem-preparation application. It will ship through one signed Windows installer.
+Build **Ehvota's Bundle**, a Windows 10/11 x64 VST3 audio-plugin and utility suite centred on reference-driven mixing, deterministic audio analysis, linked Ehvota processors, precise musical timing, optional analogue colour, and offline stem preparation.
 
-The product must be stable, predictable, offline, explainable, recoverable, maintainable, and safe. It must never upload audio, require an account or subscription, silently master audio, silently change remote parameters, or imply unsupported certainty. Core analysis and processing must work without AI; only Ehvota Stem Prep may use a local model.
+Ehvota remains a normal C++/JUCE VST3 suite. **Ableton Live 12 Suite** is now the primary DAW because the product's longer-term direction includes deep project-state awareness and controlled Codex/MCP integration. Ableton integration will use an optional Max for Live **Ehvota Bridge** backed by the Live Object Model. The Ehvota audio processors must continue to work without the bridge, without MCP, without Codex, without an account, and without a network connection.
+
+The original full reference remains authoritative. AI-separated stems are diagnostic inputs only. Core analysis and processing do not require AI; only Ehvota Stem Prep may use a local model.
 
 ## Confirmed constraints
 
@@ -16,62 +19,63 @@ The product must be stable, predictable, offline, explainable, recoverable, main
 - [x] Vendor: Ehvota.
 - [x] Internal identifier: `EhvotasBundle`.
 - [x] Package namespace: `com.ehvota.bundle`.
-- [x] Target: Windows 10 and Windows 11, x64 only.
-- [x] Plugin format: VST3; initial host configuration is unbridged 64-bit.
-- [x] Primary host: FL Studio.
-- [x] Language/build tools: C++20, CMake, MSVC through Visual Studio or Build Tools.
-- [x] Framework: a current stable JUCE release after licence verification.
-- [x] Installer default: Inno Setup, subject to documented research.
-- [x] Local/offline operation; no cloud, account, subscription, required API, or audio upload.
-- [x] No arbitrary third-party plugin control and no real-time stem inference inside a VST.
+- [x] Product target: Windows 10/11 x64.
+- [x] Plugin format: VST3.
+- [x] Primary host: **Ableton Live 12 Suite** on Windows.
+- [x] Secondary future host: FL Studio; it must not drive Version 1 architecture.
+- [x] DAW integration layer: optional Max for Live `Ehvota Bridge` using the Live Object Model.
+- [x] Audio processing remains C++20/JUCE VST3, not Max for Live DSP.
+- [x] Future Codex/MCP integration is separate from core plugin operation.
+- [x] External writes must use the same proposal, validation, permission, and undo path as RefHub.
+- [x] No direct external access to audio-thread memory.
+- [x] Local/offline operation; no required cloud, account, subscription, API, or audio upload.
+- [x] No real-time AI stem separation inside a VST.
 - [x] Route A development signing uses a manually trusted self-signed Ehvota certificate.
-- [x] No signing private key, password, secret, user audio, or generated build output may be committed.
-- [x] Production DSP may not begin until the JUCE UI Preview is reviewed and the user explicitly approves the UI direction.
+- [x] No signing private key, password, user audio, model secret, or generated build output may be committed.
+- [x] Production DSP is blocked until the revised JUCE UI Preview is reviewed and explicitly approved by the user.
+- [x] Current UI direction is not approved; it needs a second refinement pass.
 
-## Current repository and host state
+## Current repository state
 
-Read-only audit performed on 2026-07-23 before any repository mutation.
+The repository already contains a working Phase 0/1 foundation rather than being empty:
 
-- Working directory: `/home/kenny/EhvotaPlugins`.
-- The directory contained only empty `.git`, `.agents`, and `.codex` directories.
-- The `.git` directory was an empty environment placeholder; Git reported that the working directory was not a repository. There was therefore no Git status, tracked-file list, branch, or history to inspect.
-- No source, CMake, JUCE, VST3, installer, UI, test, documentation, legal, licence, generated, or signing-material files existed.
-- No existing or duplicate implementations were found.
-- Current execution host: Arch Linux x86_64, kernel `7.0.12-arch1-1`.
-- Available here: CMake 4.3.4, Ninja 1.13.2, Git 2.54.0, Python 3.14.5, GCC/G++ 16.1.1.
-- Not found here: MSVC `cl`, MSBuild, Visual Studio/`devenv`, Inno Setup `iscc`, PowerShell, Wine, Steinberg VST3 validator, or Clang.
-- `/usr/bin/signtool` is a Linux/NSS utility, not the Windows SDK Authenticode signing tool, and is unsuitable for Route A signing.
-- This host can support source authoring, documentation, architecture checks, selected portable tests, and possibly a non-product Linux UI preview used only as a development aid. It cannot provide authoritative evidence for the Windows-only build, Windows DPI behaviour, Authenticode signing, Inno Setup, VST3 validation on Windows, or FL Studio integration.
-- The intended execution environment is a Windows computer. Before any Windows-specific gate is marked complete, the repository must be moved to or opened on that machine and the exact Windows toolchain must be audited there.
+- CMake workspace and presets.
+- JUCE 8.0.9 pinned as a submodule at `f72bad64d29715216226685810c5196bd0d79d77`.
+- Shared JUCE UI components and `SuiteShell`.
+- Standalone `EhvotaUIDemo` source.
+- Deterministic preview scenarios and journey replay models.
+- RefTime calculation core.
+- Portable tests and Windows screenshot/audit tooling.
+- Living documentation and repository instructions.
+- No production DSP, final VST3 product set, Stem Prep inference integration, installer, signing release flow, or final Ableton bridge implementation yet.
 
-## Assumptions requiring validation
+A previous plan treated FL Studio as the primary host. That host-specific assumption is now superseded by decisions D-008/D-009 in `docs/DECISIONS.md` and `docs/ABLETON_INTEGRATION.md`.
 
-- [ ] Confirm the exact Windows edition/build, CPU, RAM, GPU, display resolutions, and scaling levels.
-- [ ] Confirm installed Visual Studio/Build Tools workloads and Windows SDK version.
-- [ ] Confirm installed FL Studio version/edition and its VST3 scanning paths.
-- [x] Confirm whether JUCE licensing terms are acceptable for this personal project and any future distribution. User selected JUCE 8 Starter and accepted the JUCE 8 EULA on 2026-07-23.
-- [x] Confirm whether JUCE will be fetched reproducibly or vendored after licence/maintenance review. JUCE 8.0.9 is pinned as a Git submodule at `f72bad64d29715216226685810c5196bd0d79d77`.
-- [ ] Confirm the exact Inno Setup version and whether it meets repair/modify requirements without a different packaging layer.
-- [ ] Confirm the Windows audio-device and GPU environment for Stem Prep benchmarks.
-- [ ] Confirm whether the reference library must support non-ASCII paths and Windows long paths in Version 1.
-- [ ] Confirm whether the UI preview may use a temporary system font before the bundled typeface is selected.
-- [ ] Confirm plugin permanent VST3 class IDs before the first usable release.
+## Current development-host boundary
 
-## Research questions
+Repository work can occur on Linux, but Linux remains a source-authoring and portable-test environment only. Windows is the sole product/release target.
 
-- [x] What is the current stable JUCE release, supported CMake/MSVC baseline, VST3 support status, licence, and redistribution model? Initial decision recorded in `docs/DECISIONS.md` and `docs/THIRD_PARTY_NOTICES.md`; Windows compatibility remains to be executed.
-- [ ] Which official FL Studio behaviours and limitations affect tempo, time signature, Smart Disable, offline rendering, scaling, plugin delay compensation, and VST3 state?
-- [ ] Which analyser and reference workflows are most successful in current professional tools, without copying their visual identity?
-- [ ] Which accessible Windows typeface best satisfies tabular-numeral, DPI, licence, and redistribution requirements?
-- [ ] Which Windows accessibility APIs and JUCE facilities cover keyboard focus, screen readers, contrast, and reduced animation?
-- [ ] What deterministic screenshot and UI-state test strategy is reliable for JUCE on Windows?
-- [ ] Which local four-stem models and runtimes have verified redistribution licences and acceptable CPU fallback?
-- [ ] Which Authenticode development-signing and timestamp options work safely with a self-signed local certificate?
-- [ ] Does Inno Setup adequately support Complete, Plugins Only, Custom, upgrade, repair, modify, preserved personal data, and signed payloads?
+Linux may provide evidence for:
 
-## Proposed repository architecture
+- source architecture;
+- portable deterministic logic;
+- model/view-model tests;
+- compile-only checks where explicitly labelled non-product;
+- documentation and review.
 
-This architecture is provisional until the Windows toolchain and JUCE dependency are verified:
+Linux cannot be final evidence for:
+
+- MSVC builds;
+- Windows JUCE rendering;
+- Windows DPI/accessibility;
+- VST3 host behaviour;
+- Ableton Live integration;
+- Max for Live integration;
+- Authenticode signing;
+- Inno Setup;
+- clean-machine installation.
+
+## Architecture
 
 ```text
 /
@@ -79,7 +83,6 @@ This architecture is provisional until the Windows toolchain and JUCE dependency
 ├── plan.md
 ├── CMakeLists.txt
 ├── CMakePresets.json
-├── cmake/
 ├── .agent/PLANS.md
 ├── apps/
 │   ├── ui-preview/
@@ -92,24 +95,22 @@ This architecture is provisional until the Windows toolchain and JUCE dependency
 │   ├── reftime/
 │   ├── refcolor/
 │   └── future/
+├── ableton/
+│   ├── README.md
+│   └── bridge/             # Max for Live bridge source/assets when implementation begins
 ├── shared/
 │   ├── analysis/
 │   ├── audio/
 │   ├── communication/
 │   ├── timing/
 │   ├── ui/
+│   ├── viewmodels/
 │   ├── presets/
 │   ├── state/
 │   ├── safety/
 │   ├── logging/
 │   └── utilities/
 ├── tests/
-│   ├── unit/
-│   ├── dsp/
-│   ├── integration/
-│   ├── ui/
-│   ├── host/
-│   └── fixtures/
 ├── benchmarks/
 ├── tools/
 ├── installer/
@@ -117,307 +118,403 @@ This architecture is provisional until the Windows toolchain and JUCE dependency
 ├── licenses/
 ├── presets/
 ├── resources/
-└── generated/       # ignored review/build artefacts
+└── generated/             # ignored screenshots/build/review artifacts
 ```
 
-Boundaries:
+### Boundary: Ableton vs Ehvota
 
-- `shared/ui` owns reusable production UI components, tokens, layout primitives, accessibility behaviours, and view contracts used by the preview and plugins.
-- `apps/ui-preview` is the authoritative interactive Phase 1 prototype using deterministic mock/replay data; it must not become a disposable fork.
-- DSP, analysis, communication, timing, safety, state, presets, logging, and UI remain distinct modules.
-- Audio-thread code may communicate only through explicitly real-time-safe interfaces.
-- Generated screenshots, recordings, build trees, caches, and packages stay outside source directories.
+**Ableton Bridge / Live Object Model provides project structure and controllable DAW state:**
 
-## UI/UX-first strategy
+- Live Set identity/state;
+- tracks and return tracks;
+- names and stable-enough bridge identities;
+- mixer state exposed by the Live API;
+- devices and parameters exposed by the Live API;
+- sends;
+- tempo, meter and transport;
+- selected track/device;
+- future controlled actions.
 
-1. Research current official platform/framework guidance and a focused set of workflow competitors.
-2. Document users, contexts, information architecture, and all eight required journeys.
-3. Compare at most three coherent visual directions.
-4. Recommend one direction based on readability, workflow, originality, and feasible JUCE implementation.
-5. Define production tokens, typography, semantics, layout/breakpoints, interaction standards, accessibility, help, performance, and all required states.
-6. Build Ehvota UI Preview from the same `shared/ui` production components and deterministic view-model fixtures intended for plugins.
-7. Exercise every primary journey; verify continuous resizing, Windows DPI levels, keyboard interaction, state coverage, and UI performance on Windows.
-8. Capture review screenshots in an ignored/generated-artifact location.
-9. Complete self-review, documentation, and a coherent Git commit.
-10. Stop and request explicit user approval. Do not implement production DSP before approval.
+**Ehvota plugins provide audio truth:**
 
-## Phases and granular tasks
+- spectra;
+- loudness;
+- true peak;
+- dynamics;
+- transients;
+- Mid/Side;
+- correlation;
+- component activity;
+- captures;
+- reference mappings;
+- RefEQ state;
+- RefComp state;
+- proposal state.
 
-### Phase 0 — Audit, research, and planning
+The bridge is optional. RefTap remains necessary because DAW object state does not replace real-time audio measurement.
 
-- [x] Read the complete master goal.
-- [x] Audit the initial directory without mutation.
-- [x] Audit the current host toolchain without exposing secrets.
-- [x] Identify the empty/non-repository state.
-- [x] Create `plan.md` as the first repository mutation.
-- [x] Initialize a valid Git repository after the required first mutation.
-- [x] Add concise `AGENTS.md`.
-- [x] Add `.agent/PLANS.md`.
-- [x] Verify fresh Codex instruction loading. An ephemeral read-only GPT session reproduced the first root rule without tool or file access on 2026-07-23.
-- [x] Add an appropriate `.gitignore` before builds or screenshots.
-- [x] Create only the minimum active documentation, populated with evidence.
-- [x] Research official JUCE, CMake/MSVC, VST3, Windows accessibility/DPI, FL Studio, and Inno Setup sources for the initial architecture.
-- [x] Record initial dependency and licence findings.
-- [x] Establish Windows environment bootstrap/audit instructions and `tools/check-windows-dev.ps1`.
-- [x] Establish the initial risk register and decision log.
+### External automation boundary
+
+Future architecture:
+
+```text
+Codex
+  |
+ MCP
+  |
+Ehvota DAW MCP   (separate future repository)
+  |
+localhost IPC
+  |
+Ehvota Bridge / External Control Gateway
+  |                         \
+Live Object Model            RefLink-safe control boundary
+  |                            |
+Ableton Live                Ehvota plugins
+```
+
+Rules:
+
+- MCP is not implemented in this repository during the UI phase.
+- No raw audio-thread memory is exposed externally.
+- External reads use immutable/snapshot-style state where practical.
+- External writes are never arbitrary memory/parameter writes.
+- All write-capable operations are validated and permissioned.
+- Processing changes default to proposals requiring user approval.
+- Undo scope is explicit.
+- Loss of bridge/MCP must not stop audio processing.
+- No network/cloud dependency is introduced for normal use.
+
+## UI/UX-first strategy — current gate
+
+The first UI preview proved the component foundation but is **not approved**. It looks too much like a monitoring/dashboard application, contains too many permanent navigation destinations, gives insufficient space to the musical timeline/analyser, mixes onboarding/debug UI with production UI, and duplicates status information.
+
+The second refinement pass must keep the good visual foundation while changing information architecture.
+
+### Required primary navigation
+
+Exactly five primary destinations:
+
+1. Compare
+2. Sources
+3. Process
+4. History
+5. Settings
+
+Secondary navigation:
+
+**Compare**
+- Overview
+- Tone
+- Dynamics
+- Space
+- Components
+
+**Sources**
+- Library
+- Mapping
+- Sections
+- Validation
+
+**Process**
+- Links
+- Proposals
+- Signal Chain
+- Learn
+
+Band Focus is contextual inside Compare. Timing is contextual and also has the standalone RefTime plugin.
+
+### Mandatory second-pass screens
+
+Before production DSP, implement and review:
+
+- [ ] **Screen A — RefHub Active Comparison**: large timeline, large analyser, compact A/B + Level Match + Blind + Capture controls, one prioritised finding, contextual inspector collapsed by default.
+- [ ] **Screen B — RefHub Sources / Mapping**: library source state, reference stems, live Ableton sources, mapping matrix, composite builder, disconnected/renamed source handling.
+- [ ] **Screen C — RefTime**: host BPM/meter, note value, dotted/triplet, exact milliseconds as visual focus, samples, copy controls, Delayed Only/Dry+Delayed/Dry Only, signal-flow explanation.
+
+### Required Ableton UI states
+
+Add deterministic fixtures for:
+
+- [ ] Ableton Bridge connected and healthy.
+- [ ] Ableton Bridge not installed / unavailable.
+- [ ] Bridge stale / heartbeat lost while audio remains safe.
+- [ ] Track renamed after a saved mapping.
+- [ ] Track removed after a saved mapping.
+- [ ] Duplicate semantic roles, e.g. two tracks both labelled/assigned `Drums`.
+- [ ] Bridge connected but Max for Live integration permission/state is incomplete.
+- [ ] MCP unavailable while the bridge and plugins remain usable.
+- [ ] External proposal pending approval.
+- [ ] External write denied by permission policy.
+
+### UI rules retained
+
+- Dark graphite/charcoal foundation.
+- Cyan = live mix.
+- Blue/violet = reference.
+- Warm accent = proposed/active intervention.
+- Green = healthy/safe.
+- Amber = caution.
+- Red = blocking error.
+- No gaming/neon aesthetic.
+- No fake rack hardware or photorealistic screws.
+- No permanent empty right panel.
+- Contextual inspector only.
+- Debug controls must be clearly debug-only and absent from release builds.
+- Fix UTF-8 rendering and test `Ehvota’s`, arrows, ±, μ, Ω, LUFS, dBFS, Mid/Side.
+- Audio/timeline/analyser is the dominant workspace.
+- Do not rely on colour alone.
+- Support compact/standard/wide layouts and Windows scaling 100/125/150/175/200%.
+
+## Phases
+
+### Phase 0 — Foundation and research
+
+Completed foundation work includes repository bootstrap, durable instructions, JUCE pinning, deterministic UI state infrastructure, timing core, portable tests, and Windows review tooling.
+
+Remaining host-migration tasks:
+
+- [x] Accept Ableton Live 12 Suite as primary host.
+- [x] Document Ableton bridge architecture.
+- [x] Define future external automation boundary.
+- [ ] Remove active FL Studio-first assumptions from current-state and validation documentation.
+- [ ] Research/record Ableton Live 12 Suite + Max for Live version/tool requirements from first-party sources before implementation.
+
+### Phase 1 — UI/UX refinement and approval — ACTIVE
+
+- [x] Existing production-component UI preview foundation exists.
+- [x] Existing deterministic scenario catalogue and journey replay exist.
+- [x] Existing shell/layout/token infrastructure exists.
+- [x] User reviewed the first preview and rejected it as final UI.
+- [ ] Replace 14-item sidebar with five primary destinations.
+- [ ] Implement contextual secondary navigation.
+- [ ] Make timeline/analyser dominant in active comparison.
+- [ ] Convert permanent right panel to collapsible contextual inspector.
+- [ ] Replace permanent journey card with state-based onboarding.
+- [ ] Consolidate duplicated reference/status information.
+- [ ] Separate debug UI from release UI.
+- [ ] Improve typography and secondary-text contrast.
+- [ ] Fix and regression-test UTF-8/special characters.
+- [ ] Add Ableton bridge deterministic states.
+- [ ] Implement Screen A.
+- [ ] Implement Screen B.
+- [ ] Implement Screen C.
+- [ ] Run portable model/layout tests on Linux.
+- [ ] Run Windows MSVC build of EhvotaUIDemo.
+- [ ] Validate 860×600, 1024×640, 1180×760, 1366×768, 1440×900, 1600×1000 RefHub layouts.
+- [ ] Validate 620×420, 720×500, 900×620 RefTime layouts.
+- [ ] Validate Windows scale factors 100/125/150/175/200%.
+- [ ] Capture required review screenshots.
+- [ ] Update `docs/UI_CONTRACT.md`, `docs/DESIGN_SYSTEM.md`, `docs/INFORMATION_ARCHITECTURE.md`, `docs/USER_FLOWS.md`.
+- [ ] Stop and request explicit user approval.
+- [ ] Record approval before Phase 2.
 
 Acceptance criteria:
 
-- Repository guidance and a restartable plan exist.
-- Current state, constraints, risks, unresolved questions, and evidence are explicit.
-- A valid Git repository exists without generated or secret files.
-- No production dependency is accepted without licence and maintenance review.
-- The intended Windows toolchain is either verified on Windows or clearly marked pending.
+- Three required screens exist using shared production components.
+- Ableton-specific source/mapping/bridge states are demonstrable.
+- Normal comparison no longer resembles an enterprise dashboard.
+- Audio timeline/analyser is the visual priority.
+- Debug UI is absent from release-mode preview.
+- Responsive and DPI evidence exists on Windows.
+- User explicitly approves the revised UI.
 
-### Phase 1 — UI/UX foundation and approval
+### Phase 2 — Core engineering skeleton — BLOCKED
 
-- [x] Define personas and studio usage contexts.
-- [x] Document the eight required primary journeys and their error/recovery paths.
-- [x] Define RefHub information architecture and individual plugin/app shells.
-- [x] Produce low-fidelity wireframes.
-- [x] Compare no more than Precision Studio, Warm Technical, and Hybrid Signal.
-- [x] Select and justify one recommended direction.
-- [x] Define design tokens, typography, colour semantics, spacing, sizing, graph styles, and icon rules.
-- [x] Define keyboard map, exact-entry behaviour, help/tooltips, undo/redo, A/B, and focus behaviour.
-- [x] Define empty/loading/offline/error/degraded/render/unsupported states.
-- [x] Define compact/standard/wide layouts and minimum/default sizes.
-- [x] Define 100%, 125%, 150%, 175%, and 200% Windows scaling validation.
-- [x] Define UI performance budgets and reduced-motion behaviour.
-- [x] Pin accepted JUCE 8.0.9 source at official tag commit `f72bad64d29715216226685810c5196bd0d79d77`.
-- [ ] Implement and exercise the shared production shell contract.
-  Preset, undo/redo, A/B, processing-state, help, scaling, link/status, and output-meter semantics must remain reachable at every supported width; Windows rendering and keyboard exercise are required before completion.
-  `SuiteShell`, its semantic presentation model, responsive overflow policy, deterministic preview wiring, and portable validation tests now exist. The checkbox remains open for the Windows exercise.
-- [ ] Establish JUCE and the Windows MSVC/CMake build.
-- [ ] Compile and review the shared production UI component library on Windows. Source exists; JUCE/Windows build is unverified.
-- [x] Run a non-product compile-only C++20 syntax/warning check against pinned JUCE headers. All UI/preview translation units passed with `-Wall -Wextra -Wpedantic`; no link, render, or Windows claim is implied.
-- [x] Create deterministic mock/replay view models for all eight journeys and required low-confidence/render-safe/missing-model states.
-  The catalogue now contains 24 fixtures, including bounded loading, stale-data preservation, and long-label/path stress.
-- [ ] Build Ehvota UI Preview using those shared components. Target/source exists; no JUCE/Windows build evidence yet.
-- [ ] Demonstrate every required screen and journey.
-  All eight guided journey catalogues, preview replay UI, keyboard navigation, and deterministic step launch selection now exist and pass portable tests; Windows rendering and human exercise remain pending.
-- [x] Add initial meaningful model/timing/token tests and replay states. Portable suite passed on 2026-07-23.
-- [ ] Run Windows builds and tests.
-- [ ] Verify continuous resize, DPI, keyboard, long labels, accessibility basics, and major states.
-- [ ] Capture required screenshots and an interaction recording where practical.
-  Deterministic launch controls and a native Windows/DPI capture matrix now exist; execution remains pending on Windows.
-- [ ] Complete the UI checklist and update `docs/UI_CONTRACT.md`.
-- [ ] Review the complete diff and commit the UI phase.
-- [ ] Present evidence and request explicit user approval.
-- [ ] Record the user's approval before Phase 2.
+Only after UI approval:
 
-Acceptance criteria:
+- [ ] Production CMake/VST3 targets.
+- [ ] Permanent VST3 IDs.
+- [ ] Shared state/preset/logging/safety foundations.
+- [ ] Real-time thread contracts.
+- [ ] RefLink same-process proof.
+- [ ] External-control gateway abstraction that does not expose audio-thread memory.
+- [ ] Host timing proof in Ableton Live.
+- [ ] Render-safe monitoring proof.
 
-- The authoritative prototype is a standalone Windows JUCE app built from production components.
-- All eight journeys and mandatory states are demonstrable with deterministic data.
-- Windows resize/DPI/keyboard evidence and screenshots exist.
-- Documentation describes actual implemented behaviour.
-- User explicitly approves the UI direction.
+### Phase 3 — RefHub / RefTap foundation
 
-### Phase 2 — Core engineering skeleton (blocked by UI approval)
+- [ ] Reference library/playback/validation/relinking.
+- [ ] Mapping Matrix.
+- [ ] RefTap bit-transparent path and compact timestamped metrics.
+- [ ] Live Monitor.
+- [ ] Capture Analysis.
+- [ ] Sections, Bands, Dynamics, Space, Components, History, Confidence.
+- [ ] Ableton state recall and duplicate/renamed/removed track handling.
 
-- [ ] Establish production CMake workspace and Windows presets.
-- [ ] Implement shared state, presets, logging, safety, and test harness.
-- [ ] Create VST3 shells and permanent class-ID process.
-- [ ] Prove audio-thread contracts.
-- [ ] Prove RefLink same-process registration/metrics path.
-- [ ] Prove host timing and intentional-delay/technical-latency separation.
-- [ ] Prove render-safe monitoring separation.
+### Phase 4 — Ehvota Bridge and Stem Prep
 
-### Phase 3 — RefHub and RefTap foundation
+Bridge:
 
-- [ ] Implement reference library, playback, validation, relinking, mappings, and metadata.
-- [ ] Implement RefTap bit-transparent path and compact metrics.
-- [ ] Implement Live Monitor and Capture Analysis foundations.
-- [ ] Implement sections, bands, loudness, dynamics, space, components, history, and confidence.
-- [ ] Validate state recall, failure paths, real-time safety, and FL Studio integration.
+- [ ] Implement minimal read-only Max for Live Ehvota Bridge first.
+- [ ] Expose only verified Live Object Model state.
+- [ ] Add heartbeat/version/capability negotiation.
+- [ ] Handle project reload, track rename/removal, duplicate names and device changes.
+- [ ] No processing writes until read-only behaviour is stable.
 
-### Phase 4 — Stem Prep
+Stem Prep:
 
-- [ ] Benchmark candidate models on the controlled corpus.
-- [ ] Verify checkpoint/runtime licences before distribution.
-- [ ] Implement offline queue, CPU fallback, optional proven GPU path, safe cancellation, temporary output, atomic completion, metadata, hashes, and validation.
-- [ ] Integrate completed folders with RefHub.
+- [ ] Benchmark candidate four-stem models.
+- [ ] Verify exact checkpoint/runtime licences before bundling.
+- [ ] Offline CPU fallback required.
+- [ ] Safe cancellation and atomic completion.
+- [ ] Preserve alignment and relative stem levels; no individual normalisation.
+- [ ] RefHub folder integration.
 
-### Phase 5 — RefEQ, RefComp, and RefTime
+### Phase 5 — RefEQ, RefComp, RefTime
 
-- [ ] Implement validated production DSP and shared analysis feeds.
-- [ ] Implement pre/post comparison and bounded manual proposals.
-- [ ] Implement RefTime conversions, copying, output modes, and click-free tempo transitions without misreporting musical delay as latency.
-- [ ] Complete targeted FL Studio validation.
+- [ ] Production RefEQ and dynamic EQ.
+- [ ] Production RefComp.
+- [ ] Embedded analysis feeds.
+- [ ] Bounded RefHub proposals.
+- [ ] RefTime exact host-synchronised calculations, copy readouts, output modes and click-free timing transitions.
+- [ ] Validate Ableton tempo automation and meter changes.
 
 ### Phase 6 — RefColor and dynamic tools
 
-- [ ] Prototype the simplest measured analogue architecture that meets quality targets.
-- [ ] Validate oversampling, aliasing, IMD, DC, smoothing, bypass, compensation, latency, and sample-rate stability.
-- [ ] Implement RefTransient, RefClip, RefLimit, and cumulative-colour analysis only after proofs.
+- [ ] Measured analogue prototypes.
+- [ ] Oversampling/aliasing/IMD/DC/smoothing/bypass/compensation validation.
+- [ ] RefTransient.
+- [ ] RefClip.
+- [ ] RefLimit.
+- [ ] Cumulative colour analysis.
 
-### Phase 7 — Advanced comparison
+### Phase 7 — Advanced comparison and controlled external actions
 
-- [ ] Add section suggestions, multi-reference ranges, suitability, masking, blind A/B/X, deterministic Learn Mode, advanced history, and RefWidth.
+- [ ] Automatic section suggestions.
+- [ ] Multi-reference ranges.
+- [ ] Reference suitability.
+- [ ] Internal masking analysis.
+- [ ] Blind A/B/X.
+- [ ] Deterministic Learn Mode.
+- [ ] RefWidth.
+- [ ] Add narrowly scoped Ableton write actions only after read-only bridge stability.
+- [ ] All processing writes still route through proposal/permission/undo policy.
 
 ### Phase 8 — Time-based effects
 
-- [ ] Add RefDelay, RefVerb, and RefGate only after quality proofs.
+- [ ] RefDelay.
+- [ ] RefVerb.
+- [ ] RefGate.
 
-### Phase 9 — Installer and release candidate
+Only after quality proofs; do not add weak effects to increase plugin count.
 
-- [ ] Build Complete, Plugins Only, and Custom installer modes.
-- [ ] Implement safe upgrade/repair/modify/uninstall preserving personal content.
-- [ ] Implement Route A signing without repository secrets.
-- [ ] Verify signatures, VST3 packages, installer contents, clean install/uninstall, and Windows/FL Studio acceptance.
+### Phase 9 — Installer, Route A signing, release candidate
 
-## Dependencies
-
-- Windows 10/11 x64 development machine.
-- Visual Studio or Build Tools with MSVC C++ workload and Windows SDK.
-- CMake and optionally Ninja compatible with the verified JUCE release.
-- Current stable JUCE after licence and maintenance review.
-- Steinberg VST3 validation tooling where distributable/available.
-- FL Studio x64 for authoritative host validation.
-- Inno Setup unless research changes the choice.
-- Windows SDK `signtool.exe` and an external encrypted Route A certificate/private key.
-- A redistribution-cleared offline model/runtime for Stem Prep, selected only after benchmarks.
-- Properly licensed bundled font/icons, or documented system-font strategy.
+- [ ] Complete / Plugins Only / Custom installer modes.
+- [ ] Include finished VST3 plugins, Stem Prep, offline model, presets and optional Ehvota Bridge assets/install guidance.
+- [ ] Safe upgrade/repair/modify/uninstall.
+- [ ] Preserve user references/presets/captures by default.
+- [ ] Self-signed development certificate workflow.
+- [ ] Sign internal binaries and final installer.
+- [ ] Clean-machine Ableton Live 12 Suite validation.
 
 ## Risk register
 
-### Legal and licence risks
+### Ableton integration
 
-- JUCE licence suitability and obligations are not yet verified.
-- VST3 SDK/licensing and validator distribution constraints require verification.
-- Stem-model checkpoints and inference runtimes may have incompatible or ambiguous redistribution terms.
-- Fonts, icons, fixtures, reference audio, and competitor screenshots require explicit rights.
-- Self-signed binaries must not imply public trust.
+- Live Object Model coverage may differ from desired high-level actions; expose only verified capabilities.
+- Max for Live device lifecycle and Live Set reload/duplication need explicit tests.
+- Track names are not sufficient stable identity; bridge mapping needs durable identity/recovery strategy.
+- A bridge heartbeat may become stale while audio processing continues; UI must show this without implying audio failure.
+- Third-party device parameters may be technically visible, but Version 1 must not grant unrestricted control.
 
-### Audio-thread risks
+### External automation
 
-- Cross-instance communication, analyser capture, UI telemetry, and state changes can cause allocation, locking, unbounded work, or lifetime races.
-- Host shutdown, duplicate instances, transport jumps, block-size/sample-rate changes, and offline rendering need explicit testable contracts.
-- Intentional RefTime delay must remain separate from reported technical latency.
-- Monitoring/reference paths must be provably excluded from renders.
+- MCP must not become a bypass around RefHub safety.
+- Read access and write access require separate capabilities.
+- External writes need validation, permission, transaction scope and undo.
+- No remote caller may block the audio thread.
 
-### FL Studio integration risks
+### Audio thread
 
-- Current host cannot verify FL Studio behaviour.
-- Smart Disable, tempo/meter context, project reload, scaling, automation, offline render, PDC, bridged instances, and duplicate-registration behaviour require real Windows/FL Studio evidence.
-- Initial RefLink is unbridged/same-process only; unsupported bridge cases must be visible.
+- No heap allocation, blocking lock, file I/O, model inference, UI call, waiting, or unbounded work in audio callbacks.
+- Cross-instance lifetime and host shutdown are explicit concerns.
+- RefTime intentional delay is not technical latency.
+- Reference/monitoring paths must be excluded from renders.
 
-### Stem-model risks
+### Stem models
 
-- Model quality varies by genre and source.
-- Licence, runtime size, CPU speed, GPU support, RAM, reconstruction, leakage, artefacts, deterministic recovery, and output alignment are unproven.
-- GPU claims must be limited to exact tested hardware/runtime combinations.
+- Quality varies by genre/source.
+- Exact model checkpoint licences can differ from framework licences.
+- GPU claims require exact tested hardware/runtime evidence.
 
-### Signing and installer risks
+### UI
 
-- No Windows signing or installer tool exists in the current host.
-- Private-key handling, timestamp behaviour, signing internal VST3 binaries, upgrade identity, repair/modify semantics, and preserved user data need Windows validation.
-- The installer must never silently trust a certificate.
+- Dense technical information can overwhelm laptop-sized plugin windows.
+- The UI must remain musical and task-centred, not dashboard-centred.
+- Linux rendering is not Windows DPI evidence.
 
-### UI risks
+### Signing/install
 
-- Linux rendering is not authoritative for Windows fonts, scaling, ClearType, input, accessibility, or JUCE per-monitor DPI behaviour.
-- Dense analysis views may conflict with laptop readability and performance.
-- Graph motion must remain decoupled from DSP and reduced-motion compatible.
-
-## Performance budgets to establish
-
-Initial budgets are research tasks, not yet validated promises:
-
-- [ ] Audio callback time/CPU per plugin at target sample rates and buffer sizes.
-- [ ] Zero allocations, blocking locks, file I/O, logging, UI calls, model inference, or unbounded loops in audio callbacks.
-- [ ] RefTap CPU and memory budget.
-- [ ] RefLink message rate, queue capacity, drop policy, and capture limits.
-- [ ] UI frame-rate/refresh budgets for idle, live graphs, and reduced-motion modes.
-- [ ] UI startup, resize, state-switch, and screenshot-test tolerances.
-- [ ] Plugin memory budget and analysis-cache limits.
-- [ ] Stem Prep CPU throughput, RAM, model footprint, disk-space, cancellation, and recovery budgets.
-- [ ] Installer size and install/repair/uninstall duration budgets.
+- Route A creates trust only on machines where the Ehvota public certificate is deliberately imported.
+- Installer must never silently install a root certificate.
+- Private key remains external and encrypted.
 
 ## Testing strategy
 
-- Level 0: formatting, static file checks, CMake syntax/config checks, licence/secret/generated-file scans.
-- Level 1: focused unit tests for view models, timing maths, state, safety policies, and individual DSP units.
-- Level 2: component and integration tests for RefLink, library validation, proposals, render safety, and deterministic UI replay states.
-- Level 3: Windows JUCE UI screenshot/interaction, DPI, keyboard, accessibility, performance, VST3 validation, and DAW harness tests.
-- Level 4: FL Studio workflow matrix, objective DSP measurements, listening evaluations, clean-machine installer/signature/upgrade/repair/uninstall validation.
+- **Level 0:** formatting, source scans, generated/secret/licence checks.
+- **Level 1:** portable unit tests for view models, timing, state, mapping policies and DSP units.
+- **Level 2:** integration tests for RefLink, bridge-state models, proposals, render safety and deterministic UI replay.
+- **Level 3:** Windows JUCE build/UI, DPI, keyboard/accessibility, VST3 validation, Ableton host tests, Max for Live bridge tests.
+- **Level 4:** objective DSP measurement, listening evaluations, clean-machine installer/signature/upgrade/repair/uninstall.
 
-Tests are evidence only for the requirements they actually cover. Windows-only gates cannot be marked complete from Linux-only results.
+Evidence is scoped: Linux-only results cannot close Windows/Ableton-specific gates.
 
-## Decision log
+## Decision log summary
 
-### D-001 — Windows is the sole product target
+- D-001: Windows x64 is the sole product target.
+- D-002: UI approval blocks production DSP.
+- D-003: UI Preview uses production components.
+- D-005: JUCE 8 Starter / JUCE 8.0.9 pin accepted.
+- D-006: Inno Setup provisional default.
+- D-007: development VST3 staging uses per-user standard location.
+- D-008: Ableton Live 12 Suite is the primary DAW; FL Studio moves to later compatibility.
+- D-009: Ehvota Bridge is optional Max for Live integration; external writes share RefHub safety/undo.
 
-Date: 2026-07-23
-Status: Confirmed
-Decision: Author and package only the Windows 10/11 x64 VST3 product. Linux builds, if temporarily used for portable logic or early UI development, are non-product development aids and never release evidence.
-Reason: Explicit user constraint reinforced during the initial audit.
-
-### D-002 — UI approval blocks production DSP
-
-Date: 2026-07-23
-Status: Confirmed
-Decision: Build and validate the reusable JUCE production-component preview, then stop for explicit approval before production DSP.
-Reason: Prevent interaction architecture from being forced by premature DSP implementation.
-
-### D-003 — Do not infer a valid Git repository from the `.git` placeholder
-
-Date: 2026-07-23
-Status: Confirmed
-Decision: Record the empty placeholder accurately and initialize Git only after `plan.md`, because `plan.md` must be the first repository mutation.
-Reason: `git status`, `git log`, and `git ls-files` all confirmed no valid repository.
+See `docs/DECISIONS.md` for full rationale.
 
 ## Progress log
 
 ### 2026-07-23
 
-- Read the complete 2,582-line master specification.
-- Confirmed Windows targeting as a hard constraint.
-- Completed the required initial read-only directory and toolchain audit.
-- Found an empty project and an Arch Linux execution host without the required Windows build, installer, host, or signing tools.
-- Created this file as the first repository mutation.
-- Initialized Git on `main`, added repository guidance and ignore rules.
-- Added populated Phase 0/1 documentation, authoritative-source research, user flows, information architecture, wireframes, proposed Hybrid Signal design system, and provisional UI contract.
-- Added a repeatable Windows development audit script.
-- Added the CMake workspace, Windows-only JUCE UI Preview source, shared UI source, deterministic scenario catalogue, and RefTime calculation core.
-- Verified `cmake --preset portable-tests`, `cmake --build --preset portable-tests`, and `ctest --preset portable-tests`: 1/1 test passed.
-- Verified a fresh ephemeral OpenAI GPT Codex session loaded root `AGENTS.md`; it reproduced the first repository rule while explicitly prohibited from reading files. The global Stop hook then reported a failure, with no repository mutation.
-- Reviewed and committed the initial Phase 0/1 foundation as `d816aab` (`chore: establish UI-first project foundation`).
-- Recorded the user's JUCE 8 Starter/EULA acceptance and pinned official JUCE 8.0.9 commit `f72bad64d29715216226685810c5196bd0d79d77`.
-- Expanded deterministic fixtures to cover every mandatory UI validation state and added tested compact/standard/wide breakpoint policy.
-- The initial tag-as-branch submodule command failed after cloning an empty worktree. Changed method: fetched the verified tag directly, checked out its exact commit, registered the gitlink, and confirmed `git submodule status` reports JUCE 8.0.9.
-- Fixed JUCE string-boundary compile errors found by the first compile-only check; the second check and a warnings-enabled repeat passed.
-- Committed the accepted JUCE pin, complete mandatory state catalogue, responsive/scrolling hardening, product-specific hero components, accessibility metadata, Windows audit fixes, and documentation as `8eb7763` (`feat: pin JUCE and harden UI preview`).
-- Windows/JUCE compilation, rendered UI, DPI/accessibility, FL Studio, installer, and signing remain unverified.
-- Added validated preview command-line selection for deterministic scenario and logical content size.
-- Added `tools/capture-ui-review.ps1`, which captures the actual foreground Windows window, verifies per-window DPI, rejects clipping, and records a manifest with hashes. Its `Dpi`, `Core`, and `Full` matrices remain unexecuted on this Linux host.
-- Added a validated, dependency-free step catalogue for all eight primary journeys and a preview-only JUCE replay strip with labelled Back/Next controls, keyboard navigation, and deterministic `--step` launch selection.
-- Extended Windows capture preparation with a `Journeys` matrix for every replay step. The PowerShell path remains unexecuted on this Linux host.
-- Re-ran the portable build and tests after journey replay integration: 1/1 CTest target passed. A warnings-enabled C++20 compile-only check also passed for the new journey model, preview-only component, shared UI, and preview application sources.
-- Expanded deterministic UI coverage to 24 scenarios with loading, stale-data, and long-label fixtures; promoted the persistent comparison context from paint-only text to a labelled component with full tooltip/accessibility text.
-- Added the production `SuiteShell` and dependency-free `ShellPresentation` policy. Compact/standard/wide layouts preserve all actions through labelled overflow; deterministic preview interactions cover presets, undo/redo, A/B, monitor/bypass, Help, scale, status, and output metering, with monitoring locked off in Render Safe.
+- Repository/UI-first foundation created.
+- JUCE 8.0.9 pinned.
+- Deterministic scenario catalogue, journey replay, responsive shell and Windows review tooling added.
+- Portable tests and warnings-enabled compile-only checks passed on Linux.
+- Initial UI preview later reached a Windows-rendered state but was not accepted as final design.
+
+### 2026-08-12
+
+- User chose Ableton Live 12 Suite as the primary host.
+- Created `feature/ableton-first-foundation`.
+- Added `docs/ABLETON_INTEGRATION.md` and `ableton/README.md`.
+- Added Ableton-first architecture decisions and future external-automation boundary.
+- Opened issue #1 and draft PR #2.
+- Rewrote this living plan to remove FL Studio-first architecture and make the second UI refinement the active gate.
 
 ## Unresolved questions
 
-- What exact Windows machine/toolchain will be used for the mandatory Windows evidence?
-- Is the current Linux workspace a temporary staging location that will later be opened by Codex on Windows?
-- Which UI typeface and icon set meet licence and legibility requirements?
-- Which final visual direction will the user approve after the interactive preview?
-- Which model/runtime combination will pass both licensing and controlled Stem Prep benchmarks?
+- Exact installed Ableton Live 12 Suite build and Max version on the Windows machine.
+- Exact Windows toolchain versions after moving/running the branch on Windows.
+- Stable mapping identity strategy between saved Ehvota mappings and Live Set objects.
+- Final approved typography/icon assets.
+- Final four-stem model/runtime after benchmark and redistribution review.
+- Exact first set of read-only bridge capabilities after a Live Object Model proof.
 
 ## Next three concrete actions
 
-1. On the intended Windows computer, run `tools/check-windows-dev.ps1` from Developer PowerShell and record the redacted result.
-2. Run `git submodule update --init --recursive`, configure `windows-msvc`, and compile/test `EhvotaUIDemo` with MSVC.
-3. Exercise every scenario, fix compile/render/layout/accessibility defects, then capture the required Windows size/DPI screenshots and update the UI acceptance evidence.
+1. Update `docs/CURRENT_STATE.md` and active UI/host documentation to Ableton-first language.
+2. Add deterministic Ableton bridge/mapping states to the preview model and tests.
+3. Refactor the UI preview into the three mandatory high-fidelity screens, then stop for user approval before production DSP.
 
 ## Restart instructions
 
-1. Read `AGENTS.md`, then read this entire plan.
-2. Inspect `git status --short --branch` and do not overwrite unrelated work.
-3. Read `docs/CURRENT_STATE.md`, `docs/DECISIONS.md`, and relevant active specifications.
-4. Locate the first incomplete task in the current phase and verify its prerequisites.
-5. If work is running on Linux, do not claim Windows, FL Studio, installer, VST3-validator, DPI, or signing evidence.
-6. Update this plan with evidence after each milestone or changed decision.
-7. Stop after three failed correction iterations on substantially the same approach; record evidence and change the method.
-8. Do not begin Phase 2 production DSP until Phase 1 is complete and the user's explicit UI approval is recorded.
+1. Read `AGENTS.md`, `.agent/PLANS.md`, and this entire plan.
+2. Inspect branch/status and preserve unrelated changes.
+3. Read `docs/CURRENT_STATE.md`, `docs/DECISIONS.md`, `docs/ABLETON_INTEGRATION.md`, `docs/UI_CONTRACT.md`, and active UI specifications.
+4. Work from the first incomplete item in Phase 1.
+5. Do not claim Windows/Ableton/Max evidence from Linux-only work.
+6. Update plan/docs after each milestone with actual evidence.
+7. Stop after three substantially similar failed approaches and change method.
+8. Do not begin production DSP until revised UI approval is recorded.
