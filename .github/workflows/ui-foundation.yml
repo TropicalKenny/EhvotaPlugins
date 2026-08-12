@@ -82,9 +82,14 @@ jobs:
 
           foreach ($capture in $captures) {
             $env:EHVOTA_SNAPSHOT_PATH = Join-Path $output $capture.Name
-            & $preview.FullName "--scenario=$($capture.Scenario)" "--width=$($capture.Width)" "--height=$($capture.Height)"
-            if ($LASTEXITCODE -ne 0) {
-              throw "Snapshot render failed for $($capture.Scenario) with exit code $LASTEXITCODE."
+            $arguments = @(
+              "--scenario=$($capture.Scenario)",
+              "--width=$($capture.Width)",
+              "--height=$($capture.Height)"
+            )
+            $process = Start-Process -FilePath $preview.FullName -ArgumentList $arguments -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              throw "Snapshot render failed for $($capture.Scenario) with exit code $($process.ExitCode)."
             }
             if (-not (Test-Path -LiteralPath $env:EHVOTA_SNAPSHOT_PATH)) {
               throw "Snapshot was not created: $env:EHVOTA_SNAPSHOT_PATH"
