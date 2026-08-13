@@ -74,3 +74,22 @@ else()
 endif()
 
 add_test(NAME EhvotaRefHubNavigationTests COMMAND EhvotaRefHubNavigationTests)
+
+add_executable(EhvotaBridgeProtocolTests
+    BridgeProtocolTests.cpp
+)
+
+target_link_libraries(EhvotaBridgeProtocolTests
+    PRIVATE
+        EhvotaCommunication
+)
+
+target_compile_features(EhvotaBridgeProtocolTests PRIVATE cxx_std_20)
+
+if(MSVC)
+    target_compile_options(EhvotaBridgeProtocolTests PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(EhvotaBridgeProtocolTests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME EhvotaBridgeProtocolTests COMMAND EhvotaBridgeProtocolTests)
