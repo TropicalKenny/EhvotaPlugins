@@ -11,6 +11,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Ehvota uses typographic punctuation and audio symbols directly in source/UI strings.
+# Force MSVC to interpret source and execution character sets as UTF-8 so Windows
+# builds render the same text as the UTF-8 repository files instead of mojibake.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 option(EHVOTA_BUILD_UI_PREVIEW "Build the Windows JUCE UI Preview" ${WIN32})
 option(EHVOTA_BUILD_TESTS "Build deterministic non-audio tests" ON)
 
