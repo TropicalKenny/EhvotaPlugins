@@ -23,6 +23,7 @@ add_subdirectory(shared/timing)
 add_subdirectory(shared/viewmodels)
 add_subdirectory(shared/communication)
 add_subdirectory(shared/safety)
+add_subdirectory(shared/audio)
 add_subdirectory(shared/analysis)
 add_subdirectory(shared/state)
 
