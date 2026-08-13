@@ -7,6 +7,8 @@ add_library(EhvotaSafety STATIC
     LinkProposalAdapter.h
     ReferenceProposalGenerator.cpp
     ReferenceProposalGenerator.h
+    ProposalHistory.cpp
+    ProposalHistory.h
 )
 
 target_include_directories(EhvotaSafety PUBLIC "${PROJECT_SOURCE_DIR}")
