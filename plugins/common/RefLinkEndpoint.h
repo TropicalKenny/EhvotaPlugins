@@ -39,6 +39,13 @@ public:
         return id_.valid();
     }
 
+    bool updateName(const std::string_view name) noexcept
+    {
+        name_.assign(name.begin(), name.end());
+        if (!ensureRegistered()) return false;
+        return transport_.updateInstanceName(id_, name_);
+    }
+
     bool publish(
         const ehvota::communication::RefLinkMetrics& metrics,
         const ehvota::communication::SharedParameterSnapshot* parameters = nullptr) noexcept

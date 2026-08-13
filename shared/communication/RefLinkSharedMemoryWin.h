@@ -40,6 +40,7 @@ public:
     [[nodiscard]] bool ready() const noexcept { return status_ == SharedLinkOpenStatus::ready; }
     [[nodiscard]] SharedInstanceId registerInstance(SharedPluginKind, RefLinkRole, std::string_view) noexcept;
     void unregisterInstance(SharedInstanceId) noexcept;
+    [[nodiscard]] bool updateInstanceName(SharedInstanceId, std::string_view) noexcept;
     bool publish(SharedInstanceId, const RefLinkMetrics&, const SharedParameterSnapshot* parameters = nullptr) noexcept;
     [[nodiscard]] std::size_t readActive(std::array<SharedInstanceSnapshot, sharedLinkMaxInstances>&) noexcept;
 

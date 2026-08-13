@@ -126,6 +126,21 @@ void RefLinkSharedMemoryWin::unregisterInstance(const SharedInstanceId id) noexc
     unlock();
 }
 
+bool RefLinkSharedMemoryWin::updateInstanceName(
+    const SharedInstanceId id, const std::string_view name) noexcept
+{
+    if (!ready() || !region_ || !id.valid() || id.slot >= region_->instances.size() || !lock(10))
+        return false;
+    auto& record = region_->instances[id.slot];
+    const bool ok = recordMatches(record, id);
+    if (ok) {
+        copyName(record.name, name);
+        ++region_->revision;
+    }
+    unlock();
+    return ok;
+}
+
 bool RefLinkSharedMemoryWin::publish(
     const SharedInstanceId id, const RefLinkMetrics& metrics, const SharedParameterSnapshot* parameters) noexcept
 {

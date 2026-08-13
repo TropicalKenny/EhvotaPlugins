@@ -52,6 +52,14 @@ bool RefTapAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) co
         || layouts.getMainInputChannelSet() == juce::AudioChannelSet::stereo();
 }
 
+void RefTapAudioProcessor::updateTrackProperties(const TrackProperties& properties)
+{
+    if (properties.name && properties.name->isNotEmpty())
+        (void) refLink_.updateName(properties.name->toStdString());
+    else
+        (void) refLink_.updateName("RefTap");
+}
+
 void RefTapAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -143,13 +151,12 @@ void RefTapAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                         const auto offset = static_cast<std::size_t>(scheduled - blockStart);
                         capture_.push(left.subspan(offset), right.subspan(offset));
                     }
-                    // scheduled >= blockEnd: remain armed for a later block.
                 }
             }
         }
     }
 
-    // RefTap is deliberately bit-transparent. It never writes the host audio buffer.
+    // RefTap remains bit-transparent; it never writes to the host audio buffer.
 }
 
 void RefTapAudioProcessor::handleCaptureRequest()
@@ -293,7 +300,6 @@ void RefTapAudioProcessor::handleCaptureProgress()
         (void) refLink_.updateCaptureState(sequence, SharedCaptureState::capturing, 0);
     } else if (state == ehvota::audio::CaptureState::complete
         && !captureAnalysisRunning_.load(std::memory_order_acquire)) {
-        // Ensure the shared state advances through capturing even if the whole section completed between timer ticks.
         (void) refLink_.updateCaptureState(sequence, SharedCaptureState::capturing, 0);
         launchCaptureAnalysis();
     } else if (state == ehvota::audio::CaptureState::cancelled) {
