@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <array>
 #include <atomic>
 
 namespace ehvota::refcomp {
@@ -36,12 +37,16 @@ public:
 
     juce::AudioProcessorValueTreeState& parameters() noexcept { return parameters_; }
     float gainReductionDb() const noexcept { return gainReductionDb_.load(std::memory_order_relaxed); }
+    float activeAttackMs() const noexcept { return activeAttackMs_.load(std::memory_order_relaxed); }
+    float activeReleaseMs() const noexcept { return activeReleaseMs_.load(std::memory_order_relaxed); }
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
     double sampleRate_ { 44100.0 };
-    float envelopeDb_ { -120.0f };
+    std::array<float, 2> envelopeDb_ { -120.0f, -120.0f };
     std::atomic<float> gainReductionDb_ { 0.0f };
+    std::atomic<float> activeAttackMs_ { 20.0f };
+    std::atomic<float> activeReleaseMs_ { 180.0f };
     juce::AudioProcessorValueTreeState parameters_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RefCompAudioProcessor)
