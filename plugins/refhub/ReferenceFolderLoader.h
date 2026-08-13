@@ -15,8 +15,6 @@ struct ReferenceFolderLoadResult {
     juce::File authoritativeFullMixFile;
 };
 
-[[nodiscard]] ReferenceFolderLoadResult loadReferenceFolder(
-    const juce::File& directory,
-    juce::AudioFormatManager& formatManager);
+[[nodiscard]] ReferenceFolderLoadResult loadReferenceFolder(const juce::File& directory);
 
 } // namespace ehvota::refhub
