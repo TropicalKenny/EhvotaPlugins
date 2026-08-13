@@ -25,6 +25,8 @@ struct SharedInstanceSnapshot {
     SharedParameterSnapshot parameters {};
     std::uint64_t heartbeatAgeMs {};
     SharedProposalMailbox mailbox {};
+    SharedCaptureRequest captureRequest {};
+    SharedCapturedAnalysis capturedAnalysis {};
 };
 
 class RefLinkSharedMemoryWin {
@@ -40,9 +42,15 @@ public:
     void unregisterInstance(SharedInstanceId) noexcept;
     bool publish(SharedInstanceId, const RefLinkMetrics&, const SharedParameterSnapshot* parameters = nullptr) noexcept;
     [[nodiscard]] std::size_t readActive(std::array<SharedInstanceSnapshot, sharedLinkMaxInstances>&) noexcept;
+
     [[nodiscard]] bool submitProposal(SharedInstanceId, SharedProposalMailbox) noexcept;
     [[nodiscard]] std::optional<SharedProposalMailbox> consumePendingProposal(SharedInstanceId) noexcept;
     [[nodiscard]] bool completeProposal(SharedInstanceId, std::uint64_t, SharedProposalState, std::uint32_t resultCode = 0) noexcept;
+
+    [[nodiscard]] bool submitCaptureRequest(SharedInstanceId, SharedCaptureRequest) noexcept;
+    [[nodiscard]] std::optional<SharedCaptureRequest> consumePendingCaptureRequest(SharedInstanceId) noexcept;
+    [[nodiscard]] bool updateCaptureState(SharedInstanceId, std::uint64_t sequence, SharedCaptureState, std::uint32_t resultCode = 0) noexcept;
+    [[nodiscard]] bool publishCapturedAnalysis(SharedInstanceId, SharedCapturedAnalysis) noexcept;
 
 private:
     bool lock(std::uint32_t timeoutMs) noexcept;

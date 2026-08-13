@@ -1,12 +1,15 @@
 #pragma once
 
 #include "plugins/common/RefLinkEndpoint.h"
+#include "shared/audio/CaptureBuffer.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_events/juce_events.h>
 
 #include <atomic>
 #include <cstdint>
+#include <optional>
+#include <thread>
 
 namespace ehvota::reftap {
 
@@ -43,7 +46,17 @@ public:
     float correlation() const noexcept { return correlation_.load(std::memory_order_relaxed); }
 
 private:
+    struct CaptureAnalysisResult {
+        bool valid {};
+        std::uint32_t resultCode {};
+        ehvota::communication::SharedCapturedAnalysis analysis;
+    };
+
     void timerCallback() override;
+    void handleCaptureRequest();
+    void handleCaptureProgress();
+    void launchCaptureAnalysis();
+    void stopCaptureAnalysis() noexcept;
 
     std::atomic<float> peakDb_ { -100.0f };
     std::atomic<float> rmsDb_ { -100.0f };
@@ -51,6 +64,17 @@ private:
     std::atomic<float> crestDb_ {};
     std::atomic<std::uint64_t> sampleCounter_ {};
     double sampleRate_ { 44100.0 };
+
+    ehvota::audio::CaptureBuffer capture_;
+    std::atomic<std::int64_t> scheduledHostStart_ { -1 };
+    std::atomic<bool> scheduleMissed_ { false };
+    std::atomic<std::uint64_t> activeCaptureSequence_ {};
+    std::atomic<std::uint64_t> activeCaptureId_ {};
+    std::jthread captureAnalysisThread_;
+    std::atomic<bool> captureAnalysisRunning_ { false };
+    mutable juce::CriticalSection captureAnalysisLock_;
+    std::optional<CaptureAnalysisResult> pendingCaptureAnalysis_;
+
     ehvota::plugins::RefLinkEndpoint refLink_ {
         ehvota::communication::SharedPluginKind::refTap,
         ehvota::communication::RefLinkRole::bus,

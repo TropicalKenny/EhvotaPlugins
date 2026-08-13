@@ -66,6 +66,11 @@ bool valueFitsBounds(const ParameterBounds& bounds, const float value) noexcept
         return false;
     return !bounds.integerOnly || std::abs(value - std::round(value)) <= 1.0e-5f;
 }
+
+bool finiteAudioMetric(const float value) noexcept
+{
+    return std::isfinite(value) && value >= -240.0f && value <= 240.0f;
+}
 } // namespace
 
 std::optional<ParameterBounds> sharedParameterBounds(const SharedPluginKind kind, const SharedParameterKey key) noexcept
@@ -124,9 +129,44 @@ bool validateSharedOperation(const SharedPluginKind kind, const SharedParameterO
 
 bool validateSharedProposal(const SharedPluginKind kind, const SharedProposalMailbox& proposal) noexcept
 {
-    if (proposal.proposalId == 0 || proposal.targetGeneration == 0 || proposal.operationCount == 0 || proposal.operationCount > sharedLinkMaxOperations) return false;
-    for (std::uint32_t i = 0; i < proposal.operationCount; ++i) if (!validateSharedOperation(kind, proposal.operations[i])) return false;
+    if (proposal.proposalId == 0 || proposal.targetGeneration == 0 || proposal.operationCount == 0
+        || proposal.operationCount > sharedLinkMaxOperations) return false;
+    for (std::uint32_t i = 0; i < proposal.operationCount; ++i)
+        if (!validateSharedOperation(kind, proposal.operations[i])) return false;
     return true;
+}
+
+bool validateSharedCaptureRequest(const SharedCaptureRequest& request) noexcept
+{
+    return request.captureId != 0
+        && request.targetGeneration != 0
+        && request.startHostSample >= -1
+        && request.durationSamples > 0
+        && request.durationSamples <= sharedCaptureMaximumSamples;
+}
+
+bool validateSharedCapturedAnalysis(const SharedCapturedAnalysis& analysis) noexcept
+{
+    if (analysis.captureId == 0 || analysis.sourceGeneration == 0 || analysis.valid != 1
+        || !std::isfinite(analysis.sampleRate) || analysis.sampleRate < 8000.0f || analysis.sampleRate > 768000.0f
+        || analysis.capturedSamples == 0 || analysis.capturedSamples > sharedCaptureMaximumSamples)
+        return false;
+    if (!finiteAudioMetric(analysis.integratedLufs) || !finiteAudioMetric(analysis.peakDb)
+        || !finiteAudioMetric(analysis.rmsDb) || !finiteAudioMetric(analysis.crestDb)
+        || !finiteAudioMetric(analysis.sideToMidDb)
+        || !std::isfinite(analysis.correlation) || analysis.correlation < -1.0001f || analysis.correlation > 1.0001f)
+        return false;
+    for (const auto band : analysis.bandPowerDb)
+        if (!finiteAudioMetric(band)) return false;
+    return true;
+}
+
+bool sharedCaptureStateInFlight(const SharedCaptureState state) noexcept
+{
+    return state == SharedCaptureState::pending
+        || state == SharedCaptureState::armed
+        || state == SharedCaptureState::capturing
+        || state == SharedCaptureState::analysing;
 }
 
 std::string_view sharedPluginKindName(const SharedPluginKind kind) noexcept
