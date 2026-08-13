@@ -7,6 +7,8 @@ add_library(EhvotaAnalysis STATIC
     Loudness1770.h
     LevelMatch.cpp
     LevelMatch.h
+    CapturedSectionAnalysis.cpp
+    CapturedSectionAnalysis.h
 )
 
 target_include_directories(EhvotaAnalysis
