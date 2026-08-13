@@ -69,7 +69,7 @@ RefLinkSharedMemoryWin::RefLinkSharedMemoryWin() noexcept
         status_ = SharedLinkOpenStatus::ready;
     }
     else if (region_->magic != sharedLinkMagic
-        || region_->regionBytes != sizeof(SharedLinkRegion)
+        || region_->regionBytes != static_cast<std::uint32_t>(sizeof(SharedLinkRegion))
         || region_->version != sharedLinkVersion) {
         status_ = SharedLinkOpenStatus::versionMismatch;
     }
@@ -113,7 +113,8 @@ bool RefLinkSharedMemoryWin::recordMatches(
     const SharedInstanceRecord& record,
     const SharedInstanceId id) const noexcept
 {
-    return id.valid()
+    return region_ != nullptr
+        && id.valid()
         && id.slot < region_->instances.size()
         && record.state == SharedSlotState::active
         && record.generation == id.generation;
@@ -160,7 +161,7 @@ SharedInstanceId RefLinkSharedMemoryWin::registerInstance(
 
 void RefLinkSharedMemoryWin::unregisterInstance(const SharedInstanceId id) noexcept
 {
-    if (!ready() || region_ == nullptr || !id.valid() || !lock(10))
+    if (!ready() || region_ == nullptr || !id.valid() || id.slot >= region_->instances.size() || !lock(10))
         return;
     auto& record = region_->instances[id.slot];
     if (recordMatches(record, id)) {
@@ -177,7 +178,7 @@ bool RefLinkSharedMemoryWin::publish(
     const SharedInstanceId id,
     const RefLinkMetrics& metrics) noexcept
 {
-    if (!ready() || region_ == nullptr || !id.valid() || !lock(5))
+    if (!ready() || region_ == nullptr || !id.valid() || id.slot >= region_->instances.size() || !lock(5))
         return false;
     auto& record = region_->instances[id.slot];
     const auto valid = recordMatches(record, id);
@@ -222,7 +223,7 @@ bool RefLinkSharedMemoryWin::submitProposal(
     const SharedInstanceId target,
     SharedProposalMailbox proposal) noexcept
 {
-    if (!ready() || region_ == nullptr || !target.valid() || !lock(10))
+    if (!ready() || region_ == nullptr || !target.valid() || target.slot >= region_->instances.size() || !lock(10))
         return false;
 
     auto& record = region_->instances[target.slot];
@@ -248,7 +249,7 @@ bool RefLinkSharedMemoryWin::submitProposal(
 std::optional<SharedProposalMailbox> RefLinkSharedMemoryWin::consumePendingProposal(
     const SharedInstanceId target) noexcept
 {
-    if (!ready() || region_ == nullptr || !target.valid() || !lock(10))
+    if (!ready() || region_ == nullptr || !target.valid() || target.slot >= region_->instances.size() || !lock(10))
         return std::nullopt;
 
     std::optional<SharedProposalMailbox> result;
@@ -271,7 +272,7 @@ bool RefLinkSharedMemoryWin::completeProposal(
     const SharedProposalState finalState,
     const std::uint32_t resultCode) noexcept
 {
-    if (!ready() || region_ == nullptr || !target.valid() || !lock(10))
+    if (!ready() || region_ == nullptr || !target.valid() || target.slot >= region_->instances.size() || !lock(10))
         return false;
     if (finalState != SharedProposalState::applied
         && finalState != SharedProposalState::rejected

@@ -8,21 +8,20 @@ namespace ehvota::reftap {
 RefTapAudioProcessor::RefTapAudioProcessor()
     : AudioProcessor(BusesProperties()
           .withInput("Input", juce::AudioChannelSet::stereo(), true)
-          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      refLinkHandle_(ehvota::communication::RefLinkRegistry::instance().registerInstance(
-          ehvota::communication::RefLinkRole::unknown, "RefTap"))
+          .withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
+    startTimerHz(10);
 }
 
 RefTapAudioProcessor::~RefTapAudioProcessor()
 {
-    ehvota::communication::RefLinkRegistry::instance().unregisterInstance(refLinkHandle_);
+    stopTimer();
 }
 
 void RefTapAudioProcessor::prepareToPlay(const double sampleRate, const int)
 {
     sampleRate_ = sampleRate;
-    sampleCounter_ = 0;
+    sampleCounter_.store(0, std::memory_order_relaxed);
 }
 
 void RefTapAudioProcessor::releaseResources()
@@ -92,17 +91,22 @@ void RefTapAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     }
     correlation_.store(correlation, std::memory_order_relaxed);
 
-    sampleCounter_ += static_cast<std::uint64_t>(samples);
-    const float crestDb = maxMagnitude > 0.0f && rms > 0.0f ? peakDb - rmsDb : 0.0f;
-    ehvota::communication::RefLinkRegistry::instance().publish(refLinkHandle_, {
-        peakDb,
-        rmsDb,
-        correlation,
-        crestDb,
-        sampleCounter_
-    });
+    sampleCounter_.fetch_add(static_cast<std::uint64_t>(samples), std::memory_order_relaxed);
+    crestDb_.store(maxMagnitude > 0.0f && rms > 0.0f ? peakDb - rmsDb : 0.0f, std::memory_order_relaxed);
 
-    // RefTap is deliberately bit-transparent: the buffer is measured only and never modified.
+    // RefTap is deliberately bit-transparent. Cross-plugin publication happens from timerCallback(),
+    // never from the realtime audio callback.
+}
+
+void RefTapAudioProcessor::timerCallback()
+{
+    refLink_.publish({
+        peakDb_.load(std::memory_order_relaxed),
+        rmsDb_.load(std::memory_order_relaxed),
+        correlation_.load(std::memory_order_relaxed),
+        crestDb_.load(std::memory_order_relaxed),
+        sampleCounter_.load(std::memory_order_relaxed)
+    });
 }
 
 juce::AudioProcessorEditor* RefTapAudioProcessor::createEditor()
@@ -113,7 +117,7 @@ juce::AudioProcessorEditor* RefTapAudioProcessor::createEditor()
 void RefTapAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
 {
     juce::MemoryOutputStream stream(destination, true);
-    stream.writeInt(1);
+    stream.writeInt(2);
 }
 
 void RefTapAudioProcessor::setStateInformation(const void*, const int)

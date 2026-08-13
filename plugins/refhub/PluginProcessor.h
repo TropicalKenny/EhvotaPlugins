@@ -1,19 +1,23 @@
 #pragma once
 
+#include "plugins/common/RefLinkEndpoint.h"
 #include "shared/audio/CaptureBuffer.h"
 
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_events/juce_events.h>
 
+#include <array>
 #include <atomic>
+#include <cstdint>
 #include <memory>
 
 namespace ehvota::refhub {
 
-class RefHubAudioProcessor final : public juce::AudioProcessor {
+class RefHubAudioProcessor final : public juce::AudioProcessor, private juce::Timer {
 public:
     RefHubAudioProcessor();
-    ~RefHubAudioProcessor() override = default;
+    ~RefHubAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -59,7 +63,15 @@ public:
     [[nodiscard]] float referenceMonitorTrimDb() const noexcept { return referenceTrimDb_.load(std::memory_order_relaxed); }
     [[nodiscard]] bool renderSafe() const noexcept { return renderSafe_.load(std::memory_order_acquire); }
 
+    [[nodiscard]] std::size_t linkedInstanceCount() const noexcept { return linkedCount_.load(std::memory_order_acquire); }
+    [[nodiscard]] std::size_t copyLinkedInstances(
+        std::array<ehvota::communication::SharedInstanceSnapshot,
+            ehvota::communication::sharedLinkMaxInstances>& destination) const;
+    [[nodiscard]] ehvota::communication::SharedLinkOpenStatus refLinkStatus() const noexcept { return refLink_.status(); }
+
 private:
+    void timerCallback() override;
+
     juce::AudioFormatManager formatManager_;
     std::unique_ptr<juce::AudioFormatReaderSource> referenceReaderSource_;
     juce::AudioTransportSource referenceTransport_;
@@ -67,10 +79,21 @@ private:
 
     std::atomic<float> livePeakDb_ { -100.0f };
     std::atomic<float> liveRmsDb_ { -100.0f };
+    std::atomic<std::uint64_t> sampleCounter_ {};
     std::atomic<float> referenceTrimDb_ { 0.0f };
     std::atomic<bool> referenceLoaded_ { false };
     std::atomic<bool> referenceAudition_ { false };
     std::atomic<bool> renderSafe_ { true };
+
+    ehvota::plugins::RefLinkEndpoint refLink_ {
+        ehvota::communication::SharedPluginKind::refHub,
+        ehvota::communication::RefLinkRole::master,
+        "RefHub"
+    };
+    mutable juce::CriticalSection linkCacheLock_;
+    std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances> linkedInstances_ {};
+    std::atomic<std::size_t> linkedCount_ {};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RefHubAudioProcessor)
 };

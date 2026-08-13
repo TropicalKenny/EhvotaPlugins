@@ -12,14 +12,19 @@ RefHubAudioProcessor::RefHubAudioProcessor()
           .withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
     formatManager_.registerBasicFormats();
+    startTimerHz(10);
+}
+
+RefHubAudioProcessor::~RefHubAudioProcessor()
+{
+    stopTimer();
 }
 
 void RefHubAudioProcessor::prepareToPlay(const double sampleRate, const int samplesPerBlock)
 {
     referenceTransport_.prepareToPlay(samplesPerBlock, sampleRate);
-    // Section capture is intentionally bounded. Whole-track analysis uses the offline/reference
-    // analysis path rather than reserving an entire song in realtime plugin memory.
     mixCapture_.prepare(sampleRate, 60.0);
+    sampleCounter_.store(0, std::memory_order_relaxed);
 }
 
 void RefHubAudioProcessor::releaseResources()
@@ -67,7 +72,6 @@ void RefHubAudioProcessor::startReferenceAudition()
 {
     if (!hasReferenceLoaded())
         return;
-
     if (referenceTransport_.hasStreamFinished())
         referenceTransport_.setPosition(0.0);
     referenceTransport_.start();
@@ -93,7 +97,6 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     double sumSquares = 0.0;
     std::uint64_t count = 0;
 
-    // Measure and capture the project signal before any monitoring-only reference substitution.
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
         const auto* data = buffer.getReadPointer(channel);
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
@@ -105,8 +108,7 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     }
 
     if (buffer.getNumChannels() > 0 && buffer.getNumSamples() > 0) {
-        const auto left = std::span<const float>(
-            buffer.getReadPointer(0), static_cast<std::size_t>(buffer.getNumSamples()));
+        const auto left = std::span<const float>(buffer.getReadPointer(0), static_cast<std::size_t>(buffer.getNumSamples()));
         const auto right = buffer.getNumChannels() > 1
             ? std::span<const float>(buffer.getReadPointer(1), static_cast<std::size_t>(buffer.getNumSamples()))
             : left;
@@ -118,6 +120,7 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         : 0.0f;
     livePeakDb_.store(juce::Decibels::gainToDecibels(peak, -100.0f), std::memory_order_relaxed);
     liveRmsDb_.store(juce::Decibels::gainToDecibels(rms, -100.0f), std::memory_order_relaxed);
+    sampleCounter_.fetch_add(static_cast<std::uint64_t>(buffer.getNumSamples()), std::memory_order_relaxed);
 
     const bool offlineRenderProtected = renderSafe_.load(std::memory_order_acquire) && isNonRealtime();
     const bool shouldAuditionReference = referenceAudition_.load(std::memory_order_acquire)
@@ -131,9 +134,48 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         if (referenceTransport_.hasStreamFinished())
             referenceAudition_.store(false, std::memory_order_release);
     }
+}
 
-    // Render Safe is deliberately one-way: when the host declares an offline/non-realtime render,
-    // reference audition is suppressed and the untouched project signal remains at the output.
+void RefHubAudioProcessor::timerCallback()
+{
+    const auto peak = livePeakDb_.load(std::memory_order_relaxed);
+    const auto rms = liveRmsDb_.load(std::memory_order_relaxed);
+    refLink_.publish({
+        peak,
+        rms,
+        1.0f,
+        peak > -99.0f && rms > -99.0f ? peak - rms : 0.0f,
+        sampleCounter_.load(std::memory_order_relaxed)
+    });
+
+    std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances> discovered {};
+    const auto discoveredCount = refLink_.readActive(discovered);
+
+    const juce::ScopedLock lock(linkCacheLock_);
+    std::size_t kept = 0;
+    for (std::size_t i = 0; i < discoveredCount && kept < linkedInstances_.size(); ++i) {
+        const auto& item = discovered[i];
+        if (item.pluginKind == ehvota::communication::SharedPluginKind::refHub)
+            continue;
+        if (item.heartbeatAgeMs > 5000)
+            continue;
+        linkedInstances_[kept++] = item;
+    }
+    for (std::size_t i = kept; i < linkedInstances_.size(); ++i)
+        linkedInstances_[i] = {};
+    linkedCount_.store(kept, std::memory_order_release);
+}
+
+std::size_t RefHubAudioProcessor::copyLinkedInstances(
+    std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances>& destination) const
+{
+    const juce::ScopedLock lock(linkCacheLock_);
+    const auto count = linkedCount_.load(std::memory_order_acquire);
+    for (std::size_t i = 0; i < count; ++i)
+        destination[i] = linkedInstances_[i];
+    return count;
 }
 
 juce::AudioProcessorEditor* RefHubAudioProcessor::createEditor()
@@ -144,7 +186,7 @@ juce::AudioProcessorEditor* RefHubAudioProcessor::createEditor()
 void RefHubAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
 {
     juce::MemoryOutputStream stream(destination, true);
-    stream.writeInt(2);
+    stream.writeInt(3);
     stream.writeFloat(referenceTrimDb_.load(std::memory_order_relaxed));
     stream.writeBool(renderSafe_.load(std::memory_order_acquire));
 }
