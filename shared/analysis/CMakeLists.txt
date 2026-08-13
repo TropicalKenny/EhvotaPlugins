@@ -11,6 +11,8 @@ add_library(EhvotaAnalysis STATIC
     CapturedSectionAnalysis.h
     ComparisonAnalysis.cpp
     ComparisonAnalysis.h
+    CompactAnalysis.cpp
+    CompactAnalysis.h
 )
 
 target_include_directories(EhvotaAnalysis
