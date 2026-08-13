@@ -41,6 +41,7 @@ function(ehvota_add_plugin TARGET_NAME PRODUCT_NAME PLUGIN_CODE SOURCE_DIR)
             EhvotaTiming
             EhvotaCommunication
             EhvotaSafety
+            EhvotaAudio
             EhvotaAnalysis
             EhvotaState
         PUBLIC
