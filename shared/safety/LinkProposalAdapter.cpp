@@ -23,6 +23,7 @@ TargetKind expectedTargetKind(const SharedPluginKind kind) noexcept
 std::optional<SharedParameterKey> keyFor(const SharedPluginKind kind, const std::string_view id) noexcept
 {
     if (kind == SharedPluginKind::refEQ) {
+        if (id == "mode") return SharedParameterKey::eqMode;
         if (id == "hpEnabled") return SharedParameterKey::eqHighPassEnabled; if (id == "hpFreq") return SharedParameterKey::eqHighPassFrequency;
         if (id == "lpEnabled") return SharedParameterKey::eqLowPassEnabled; if (id == "lpFreq") return SharedParameterKey::eqLowPassFrequency;
         if (id == "b1Freq") return SharedParameterKey::eqBand1Frequency; if (id == "b1Gain") return SharedParameterKey::eqBand1Gain; if (id == "b1Q") return SharedParameterKey::eqBand1Q;

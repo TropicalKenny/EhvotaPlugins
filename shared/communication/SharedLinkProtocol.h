@@ -11,7 +11,7 @@
 namespace ehvota::communication {
 
 constexpr std::uint32_t sharedLinkMagic = 0x4556484cU; // EVHL
-constexpr std::uint32_t sharedLinkVersion = 2U;
+constexpr std::uint32_t sharedLinkVersion = 3U;
 constexpr std::size_t sharedLinkMaxInstances = 64;
 constexpr std::size_t sharedLinkMaxOperations = 8;
 constexpr std::size_t sharedLinkNameCapacity = 48;
@@ -37,7 +37,7 @@ enum class SharedParameterKey : std::uint16_t {
     eqBand3Frequency, eqBand3Gain, eqBand3Q,
     eqBand4Frequency, eqBand4Gain, eqBand4Q,
     eqBand5Frequency, eqBand5Gain, eqBand5Q,
-    eqBand6Frequency, eqBand6Gain, eqBand6Q, eqOutput,
+    eqBand6Frequency, eqBand6Gain, eqBand6Q, eqOutput, eqMode,
     compMode, compThreshold, compRatio, compAttack, compAttackSync, compAttackNote,
     compAttackModifier, compRelease, compReleaseSync, compReleaseNote,
     compReleaseModifier, compKnee, compMakeup, compMix,

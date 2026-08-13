@@ -27,12 +27,19 @@ private:
     };
 
     void configureKnob(juce::Slider&, const juce::String& suffix);
+    void configureToggle(juce::ToggleButton&);
 
     RefEQAudioProcessor& processor_;
-    std::array<BandControls, 4> bands_;
+    std::array<BandControls, 6> bands_;
+    juce::ComboBox mode_;
+    juce::ToggleButton highPassEnabled_ { "HP" };
+    juce::ToggleButton lowPassEnabled_ { "LP" };
     juce::Slider highPass_;
     juce::Slider lowPass_;
     juce::Slider output_;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modeAttachment_;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> highPassEnabledAttachment_;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> lowPassEnabledAttachment_;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> highPassAttachment_;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lowPassAttachment_;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> outputAttachment_;

@@ -7,6 +7,7 @@ namespace {
 std::optional<ParameterBounds> eqBounds(const SharedParameterKey key) noexcept
 {
     switch (key) {
+    case SharedParameterKey::eqMode: return ParameterBounds{0, 2, true};
     case SharedParameterKey::eqHighPassEnabled: case SharedParameterKey::eqLowPassEnabled: return ParameterBounds{0,1,true};
     case SharedParameterKey::eqHighPassFrequency: return ParameterBounds{20,800,false};
     case SharedParameterKey::eqLowPassFrequency: return ParameterBounds{2000,22000,false};
