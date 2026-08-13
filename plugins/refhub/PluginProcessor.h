@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ComponentCaptureCoordinator.h"
 #include "plugins/common/RefLinkEndpoint.h"
 #include "shared/analysis/CapturedSectionAnalysis.h"
 #include "shared/analysis/ComparisonAnalysis.h"
@@ -124,8 +125,27 @@ public:
 
     [[nodiscard]] std::size_t linkedInstanceCount() const noexcept { return linkedCount_.load(std::memory_order_acquire); }
     [[nodiscard]] std::size_t copyLinkedInstances(
-        std::array<ehvota::communication::SharedInstanceSnapshot, ehvota::communication::sharedLinkMaxInstances>& destination) const;
+        std::array<ehvota::communication::SharedInstanceSnapshot,
+            ehvota::communication::sharedLinkMaxInstances>& destination) const;
     [[nodiscard]] ehvota::communication::SharedLinkOpenStatus refLinkStatus() const noexcept { return refLink_.status(); }
+
+    // Runtime mapping from a semantic reference role to the RefTap on the corresponding live bus.
+    // Mappings are accepted only for currently fresh RefTap instances.
+    [[nodiscard]] bool setComponentMapping(
+        ehvota::state::ReferenceRole role,
+        ehvota::communication::SharedInstanceId refTap);
+    void clearComponentMapping(ehvota::state::ReferenceRole role);
+    [[nodiscard]] std::array<RuntimeComponentMapping, 4> copyComponentMappings() const;
+
+    // Schedules every requested mapped component to one common future Ableton host-sample position.
+    // Raw bus audio remains local to each RefTap; only bounded analysis summaries cross RefLink.
+    [[nodiscard]] bool beginComponentCapture(
+        double liveDurationSeconds,
+        double referenceStartSeconds,
+        double referenceDurationSeconds,
+        const ehvota::state::AnalysisScope& scope);
+    [[nodiscard]] ComponentCaptureBatch copyComponentCaptureBatch() const;
+    [[nodiscard]] std::int64_t currentHostSample() const noexcept { return currentHostSample_.load(std::memory_order_acquire); }
 
     [[nodiscard]] bool stageRefEqProposal(
         const ehvota::analysis::SectionComparison& comparison,
@@ -151,7 +171,8 @@ private:
     void timerCallback() override;
     void applyResolvedSectionLevelMatch();
     void reconcileStagedProposal(
-        const std::array<ehvota::communication::SharedInstanceSnapshot, ehvota::communication::sharedLinkMaxInstances>& snapshots,
+        const std::array<ehvota::communication::SharedInstanceSnapshot,
+            ehvota::communication::sharedLinkMaxInstances>& snapshots,
         std::size_t count);
     void stopAnalysisThread() noexcept;
 
@@ -166,6 +187,8 @@ private:
     std::atomic<float> livePeakDb_ { -100.0f };
     std::atomic<float> liveRmsDb_ { -100.0f };
     std::atomic<std::uint64_t> sampleCounter_ {};
+    std::atomic<std::int64_t> currentHostSample_ { -1 };
+    std::atomic<double> currentSampleRate_ { 44100.0 };
     std::atomic<float> referenceTrimDb_ { 0.0f };
     std::atomic<bool> referenceLoaded_ { false };
     std::atomic<bool> referenceAudition_ { false };
@@ -185,8 +208,10 @@ private:
         "RefHub"
     };
     mutable juce::CriticalSection linkCacheLock_;
-    std::array<ehvota::communication::SharedInstanceSnapshot, ehvota::communication::sharedLinkMaxInstances> linkedInstances_ {};
+    std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances> linkedInstances_ {};
     std::atomic<std::size_t> linkedCount_ {};
+    ComponentCaptureCoordinator componentCoordinator_;
 
     mutable juce::CriticalSection proposalLock_;
     std::optional<ehvota::safety::Proposal> stagedProposal_;

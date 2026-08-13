@@ -13,6 +13,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace ehvota::refhub {
 
