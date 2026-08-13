@@ -3,6 +3,7 @@
 #include "plugins/common/RefLinkEndpoint.h"
 #include "shared/analysis/ComparisonAnalysis.h"
 #include "shared/audio/CaptureBuffer.h"
+#include "shared/safety/ProposalHistory.h"
 #include "shared/safety/ProposalPolicy.h"
 
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -16,16 +17,11 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace ehvota::refhub {
 
-enum class SectionAnalysisState : std::uint8_t {
-    idle,
-    running,
-    proposalReady,
-    noProposal,
-    error
-};
+enum class SectionAnalysisState : std::uint8_t { idle, running, proposalReady, noProposal, error };
 
 class RefHubAudioProcessor final : public juce::AudioProcessor, private juce::Timer {
 public:
@@ -68,15 +64,13 @@ public:
     [[nodiscard]] double mixCaptureProgress() const noexcept { return mixCapture_.progress(); }
     [[nodiscard]] ehvota::audio::CaptureView completedMixCapture() const noexcept { return mixCapture_.completedView(); }
 
-    // The mix and reference songs do not need matching absolute timelines. The caller supplies
-    // the paired reference-section start; captured mix duration defines the comparison length.
+    // Reference and mix section durations may differ. Both complete paired sections are analysed.
     [[nodiscard]] bool startSectionAnalysis(
         ehvota::communication::SharedInstanceId refEqTarget,
         double referenceStartSeconds,
+        double referenceDurationSeconds,
         std::string sectionId);
-    [[nodiscard]] SectionAnalysisState sectionAnalysisState() const noexcept {
-        return analysisState_.load(std::memory_order_acquire);
-    }
+    [[nodiscard]] SectionAnalysisState sectionAnalysisState() const noexcept { return analysisState_.load(std::memory_order_acquire); }
     [[nodiscard]] std::optional<ehvota::analysis::SectionComparison> copyLatestComparison() const;
 
     [[nodiscard]] bool hasReferenceLoaded() const noexcept { return referenceLoaded_.load(std::memory_order_acquire); }
@@ -86,8 +80,7 @@ public:
 
     [[nodiscard]] std::size_t linkedInstanceCount() const noexcept { return linkedCount_.load(std::memory_order_acquire); }
     [[nodiscard]] std::size_t copyLinkedInstances(
-        std::array<ehvota::communication::SharedInstanceSnapshot,
-            ehvota::communication::sharedLinkMaxInstances>& destination) const;
+        std::array<ehvota::communication::SharedInstanceSnapshot, ehvota::communication::sharedLinkMaxInstances>& destination) const;
     [[nodiscard]] ehvota::communication::SharedLinkOpenStatus refLinkStatus() const noexcept { return refLink_.status(); }
 
     [[nodiscard]] bool stageRefEqProposal(
@@ -101,11 +94,13 @@ public:
         const ehvota::safety::Proposal& proposal,
         ehvota::communication::SharedInstanceId target);
 
+    [[nodiscard]] std::vector<ehvota::safety::ProposalHistoryEntry> copyProposalHistory() const;
+    [[nodiscard]] bool undoLastAppliedProposal();
+
 private:
     void timerCallback() override;
     void reconcileStagedProposal(
-        const std::array<ehvota::communication::SharedInstanceSnapshot,
-            ehvota::communication::sharedLinkMaxInstances>& snapshots,
+        const std::array<ehvota::communication::SharedInstanceSnapshot, ehvota::communication::sharedLinkMaxInstances>& snapshots,
         std::size_t count);
     void stopAnalysisThread() noexcept;
 
@@ -135,13 +130,13 @@ private:
         "RefHub"
     };
     mutable juce::CriticalSection linkCacheLock_;
-    std::array<ehvota::communication::SharedInstanceSnapshot,
-        ehvota::communication::sharedLinkMaxInstances> linkedInstances_ {};
+    std::array<ehvota::communication::SharedInstanceSnapshot, ehvota::communication::sharedLinkMaxInstances> linkedInstances_ {};
     std::atomic<std::size_t> linkedCount_ {};
 
     mutable juce::CriticalSection proposalLock_;
     std::optional<ehvota::safety::Proposal> stagedProposal_;
     ehvota::communication::SharedInstanceId stagedTarget_;
+    ehvota::safety::ProposalHistory proposalHistory_ { 64 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RefHubAudioProcessor)
 };
