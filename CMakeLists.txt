@@ -11,14 +11,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Ehvota uses typographic punctuation and audio symbols directly in source/UI strings.
-# Force MSVC to interpret source and execution character sets as UTF-8 so Windows
-# builds render the same text as the UTF-8 repository files instead of mojibake.
 if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
 option(EHVOTA_BUILD_UI_PREVIEW "Build the Windows JUCE UI Preview" ${WIN32})
+option(EHVOTA_BUILD_PLUGINS "Build the Windows VST3 product targets" ${WIN32})
 option(EHVOTA_BUILD_TESTS "Build deterministic non-audio tests" ON)
 
 add_subdirectory(shared/timing)
@@ -26,9 +24,9 @@ add_subdirectory(shared/viewmodels)
 add_subdirectory(shared/communication)
 add_subdirectory(shared/safety)
 
-if(EHVOTA_BUILD_UI_PREVIEW)
+if(EHVOTA_BUILD_UI_PREVIEW OR EHVOTA_BUILD_PLUGINS)
     if(NOT WIN32)
-        message(FATAL_ERROR "Ehvota UI Preview is a Windows-only product target.")
+        message(FATAL_ERROR "Ehvota JUCE product targets are Windows-only.")
     endif()
 
     set(_ehvota_default_juce_source "${PROJECT_SOURCE_DIR}/third_party/JUCE")
@@ -50,8 +48,15 @@ if(EHVOTA_BUILD_UI_PREVIEW)
     endif()
 
     add_subdirectory("${EHVOTA_JUCE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/_deps/juce")
+endif()
+
+if(EHVOTA_BUILD_UI_PREVIEW)
     add_subdirectory(shared/ui)
     add_subdirectory(apps/ui-preview)
+endif()
+
+if(EHVOTA_BUILD_PLUGINS)
+    add_subdirectory(plugins)
 endif()
 
 if(EHVOTA_BUILD_TESTS)
