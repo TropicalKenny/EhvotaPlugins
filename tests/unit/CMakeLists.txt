@@ -48,13 +48,19 @@ target_link_libraries(EhvotaReferenceModelTests PRIVATE EhvotaState)
 target_compile_features(EhvotaReferenceModelTests PRIVATE cxx_std_20)
 add_test(NAME EhvotaReferenceModelTests COMMAND EhvotaReferenceModelTests)
 
+add_executable(EhvotaAnalysisTests AnalysisTests.cpp)
+target_link_libraries(EhvotaAnalysisTests PRIVATE EhvotaAnalysis)
+target_compile_features(EhvotaAnalysisTests PRIVATE cxx_std_20)
+add_test(NAME EhvotaAnalysisTests COMMAND EhvotaAnalysisTests)
+
 foreach(target
     EhvotaAbletonBridgeStateTests
     EhvotaLevelMatchStateTests
     EhvotaRefHubNavigationTests
     EhvotaBridgeProtocolTests
     EhvotaProposalPolicyTests
-    EhvotaReferenceModelTests)
+    EhvotaReferenceModelTests
+    EhvotaAnalysisTests)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /permissive-)
     else()
