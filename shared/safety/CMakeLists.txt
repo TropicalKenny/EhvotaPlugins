@@ -1,6 +1,8 @@
 add_library(EhvotaSafety STATIC
     ProposalPolicy.cpp
     ProposalPolicy.h
+    AuditionPolicy.cpp
+    AuditionPolicy.h
 )
 
 target_include_directories(EhvotaSafety
