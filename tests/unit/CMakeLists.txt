@@ -29,3 +29,4 @@ ehvota_add_portable_test(EhvotaSectionModelTests SectionModelTests.cpp EhvotaSta
 ehvota_add_portable_test(EhvotaAnalysisScopeTests AnalysisScopeTests.cpp EhvotaState)
 ehvota_add_portable_test(EhvotaBiquadTests BiquadTests.cpp EhvotaAudio)
 ehvota_add_portable_test(EhvotaMappingValidationTests MappingValidationTests.cpp EhvotaState)
+ehvota_add_portable_test(EhvotaAnalogSaturationTests AnalogSaturationTests.cpp EhvotaAudio)
