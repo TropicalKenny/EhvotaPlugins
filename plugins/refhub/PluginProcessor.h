@@ -1,5 +1,7 @@
 #pragma once
 
+#include "shared/audio/CaptureBuffer.h"
+
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -46,6 +48,12 @@ public:
     void setReferenceMonitorTrimDb(float trimDb) noexcept;
     void setRenderSafe(bool enabled) noexcept { renderSafe_.store(enabled, std::memory_order_release); }
 
+    [[nodiscard]] bool beginMixCapture(double durationSeconds) noexcept { return mixCapture_.arm(durationSeconds); }
+    void cancelMixCapture() noexcept { mixCapture_.cancel(); }
+    [[nodiscard]] ehvota::audio::CaptureState mixCaptureState() const noexcept { return mixCapture_.state(); }
+    [[nodiscard]] double mixCaptureProgress() const noexcept { return mixCapture_.progress(); }
+    [[nodiscard]] ehvota::audio::CaptureView completedMixCapture() const noexcept { return mixCapture_.completedView(); }
+
     [[nodiscard]] bool hasReferenceLoaded() const noexcept { return referenceLoaded_.load(std::memory_order_acquire); }
     [[nodiscard]] bool referenceAuditionActive() const noexcept { return referenceAudition_.load(std::memory_order_acquire); }
     [[nodiscard]] float referenceMonitorTrimDb() const noexcept { return referenceTrimDb_.load(std::memory_order_relaxed); }
@@ -55,6 +63,7 @@ private:
     juce::AudioFormatManager formatManager_;
     std::unique_ptr<juce::AudioFormatReaderSource> referenceReaderSource_;
     juce::AudioTransportSource referenceTransport_;
+    ehvota::audio::CaptureBuffer mixCapture_;
 
     std::atomic<float> livePeakDb_ { -100.0f };
     std::atomic<float> liveRmsDb_ { -100.0f };
