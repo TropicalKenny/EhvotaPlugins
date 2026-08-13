@@ -9,6 +9,8 @@ add_library(EhvotaAnalysis STATIC
     LevelMatch.h
     CapturedSectionAnalysis.cpp
     CapturedSectionAnalysis.h
+    ComparisonAnalysis.cpp
+    ComparisonAnalysis.h
 )
 
 target_include_directories(EhvotaAnalysis
