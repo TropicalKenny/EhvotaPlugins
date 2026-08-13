@@ -73,6 +73,11 @@ target_link_libraries(EhvotaRefLinkRegistryTests PRIVATE EhvotaCommunication)
 target_compile_features(EhvotaRefLinkRegistryTests PRIVATE cxx_std_20)
 add_test(NAME EhvotaRefLinkRegistryTests COMMAND EhvotaRefLinkRegistryTests)
 
+add_executable(EhvotaReferenceFolderRulesTests ReferenceFolderRulesTests.cpp)
+target_link_libraries(EhvotaReferenceFolderRulesTests PRIVATE EhvotaState)
+target_compile_features(EhvotaReferenceFolderRulesTests PRIVATE cxx_std_20)
+add_test(NAME EhvotaReferenceFolderRulesTests COMMAND EhvotaReferenceFolderRulesTests)
+
 foreach(target
     EhvotaAbletonBridgeStateTests
     EhvotaLevelMatchStateTests
@@ -84,7 +89,8 @@ foreach(target
     EhvotaLoudness1770Tests
     EhvotaCapturedComparisonTests
     EhvotaAuditionPolicyTests
-    EhvotaRefLinkRegistryTests)
+    EhvotaRefLinkRegistryTests
+    EhvotaReferenceFolderRulesTests)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /permissive-)
     else()
