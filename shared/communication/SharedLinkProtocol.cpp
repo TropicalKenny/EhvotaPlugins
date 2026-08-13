@@ -7,7 +7,7 @@ namespace {
 std::optional<ParameterBounds> eqBounds(const SharedParameterKey key) noexcept
 {
     switch (key) {
-    case SharedParameterKey::eqMode: return ParameterBounds{0, 2, true};
+    case SharedParameterKey::eqMode: return ParameterBounds{0,2,true};
     case SharedParameterKey::eqHighPassEnabled: case SharedParameterKey::eqLowPassEnabled: return ParameterBounds{0,1,true};
     case SharedParameterKey::eqHighPassFrequency: return ParameterBounds{20,800,false};
     case SharedParameterKey::eqLowPassFrequency: return ParameterBounds{2000,22000,false};
@@ -58,6 +58,13 @@ std::optional<ParameterBounds> transientBounds(const SharedParameterKey key) noe
     default: return std::nullopt;
     }
 }
+
+bool valueFitsBounds(const ParameterBounds& bounds, const float value) noexcept
+{
+    if (!std::isfinite(value) || value < bounds.minimum || value > bounds.maximum)
+        return false;
+    return !bounds.integerOnly || std::abs(value - std::round(value)) <= 1.0e-5f;
+}
 } // namespace
 
 std::optional<ParameterBounds> sharedParameterBounds(const SharedPluginKind kind, const SharedParameterKey key) noexcept
@@ -71,19 +78,46 @@ std::optional<ParameterBounds> sharedParameterBounds(const SharedPluginKind kind
     }
 }
 
-bool sharedParameterAllowed(const SharedPluginKind kind, const SharedParameterKey key) noexcept { return sharedParameterBounds(kind,key).has_value(); }
+bool sharedParameterAllowed(const SharedPluginKind kind, const SharedParameterKey key) noexcept
+{
+    return sharedParameterBounds(kind,key).has_value();
+}
+
+bool validateSharedParameterValue(const SharedPluginKind kind, const SharedParameterValue& parameter) noexcept
+{
+    const auto bounds = sharedParameterBounds(kind, parameter.key);
+    return bounds.has_value() && valueFitsBounds(*bounds, parameter.value);
+}
+
+bool validateSharedParameterSnapshot(const SharedPluginKind kind, const SharedParameterSnapshot& snapshot) noexcept
+{
+    if (snapshot.count > sharedLinkMaxParameterValues)
+        return false;
+    for (std::uint32_t i = 0; i < snapshot.count; ++i) {
+        if (!validateSharedParameterValue(kind, snapshot.values[i]))
+            return false;
+        for (std::uint32_t j = 0; j < i; ++j)
+            if (snapshot.values[j].key == snapshot.values[i].key)
+                return false;
+    }
+    return true;
+}
+
+std::optional<float> sharedParameterValue(const SharedParameterSnapshot& snapshot, const SharedParameterKey key) noexcept
+{
+    const auto count = std::min<std::size_t>(snapshot.count, snapshot.values.size());
+    for (std::size_t i = 0; i < count; ++i)
+        if (snapshot.values[i].key == key)
+            return snapshot.values[i].value;
+    return std::nullopt;
+}
 
 bool validateSharedOperation(const SharedPluginKind kind, const SharedParameterOperation& op) noexcept
 {
     const auto bounds = sharedParameterBounds(kind, op.key);
-    if (!bounds || !std::isfinite(op.value) || !std::isfinite(op.expectedCurrentValue) || !std::isfinite(op.expectedTolerance)) return false;
-    if (op.value < bounds->minimum || op.value > bounds->maximum) return false;
-    if (op.expectedCurrentValue < bounds->minimum || op.expectedCurrentValue > bounds->maximum) return false;
+    if (!bounds || !valueFitsBounds(*bounds, op.value) || !valueFitsBounds(*bounds, op.expectedCurrentValue)
+        || !std::isfinite(op.expectedTolerance)) return false;
     if (op.expectedTolerance < 0.0f || op.expectedTolerance > (bounds->maximum - bounds->minimum)) return false;
-    if (bounds->integerOnly) {
-        if (std::abs(op.value - std::round(op.value)) > 1.0e-5f) return false;
-        if (std::abs(op.expectedCurrentValue - std::round(op.expectedCurrentValue)) > 1.0e-5f) return false;
-    }
     return true;
 }
 

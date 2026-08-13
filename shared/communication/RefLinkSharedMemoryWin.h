@@ -14,11 +14,7 @@
 
 namespace ehvota::communication {
 
-enum class SharedLinkOpenStatus : std::uint8_t {
-    unavailable,
-    ready,
-    versionMismatch
-};
+enum class SharedLinkOpenStatus : std::uint8_t { unavailable, ready, versionMismatch };
 
 struct SharedInstanceSnapshot {
     SharedInstanceId id;
@@ -26,6 +22,7 @@ struct SharedInstanceSnapshot {
     RefLinkRole role { RefLinkRole::unknown };
     std::array<char, sharedLinkNameCapacity> name {};
     RefLinkMetrics metrics {};
+    SharedParameterSnapshot parameters {};
     std::uint64_t heartbeatAgeMs {};
     SharedProposalMailbox mailbox {};
 };
@@ -34,39 +31,24 @@ class RefLinkSharedMemoryWin {
 public:
     RefLinkSharedMemoryWin() noexcept;
     ~RefLinkSharedMemoryWin();
-
     RefLinkSharedMemoryWin(const RefLinkSharedMemoryWin&) = delete;
     RefLinkSharedMemoryWin& operator=(const RefLinkSharedMemoryWin&) = delete;
 
     [[nodiscard]] SharedLinkOpenStatus status() const noexcept { return status_; }
     [[nodiscard]] bool ready() const noexcept { return status_ == SharedLinkOpenStatus::ready; }
-
-    [[nodiscard]] SharedInstanceId registerInstance(
-        SharedPluginKind pluginKind,
-        RefLinkRole role,
-        std::string_view name) noexcept;
-    void unregisterInstance(SharedInstanceId id) noexcept;
-    bool publish(SharedInstanceId id, const RefLinkMetrics& metrics) noexcept;
-
-    [[nodiscard]] std::size_t readActive(
-        std::array<SharedInstanceSnapshot, sharedLinkMaxInstances>& destination) noexcept;
-
-    [[nodiscard]] bool submitProposal(
-        SharedInstanceId target,
-        SharedProposalMailbox proposal) noexcept;
-    [[nodiscard]] std::optional<SharedProposalMailbox> consumePendingProposal(
-        SharedInstanceId target) noexcept;
-    [[nodiscard]] bool completeProposal(
-        SharedInstanceId target,
-        std::uint64_t sequence,
-        SharedProposalState finalState,
-        std::uint32_t resultCode = 0) noexcept;
+    [[nodiscard]] SharedInstanceId registerInstance(SharedPluginKind, RefLinkRole, std::string_view) noexcept;
+    void unregisterInstance(SharedInstanceId) noexcept;
+    bool publish(SharedInstanceId, const RefLinkMetrics&, const SharedParameterSnapshot* parameters = nullptr) noexcept;
+    [[nodiscard]] std::size_t readActive(std::array<SharedInstanceSnapshot, sharedLinkMaxInstances>&) noexcept;
+    [[nodiscard]] bool submitProposal(SharedInstanceId, SharedProposalMailbox) noexcept;
+    [[nodiscard]] std::optional<SharedProposalMailbox> consumePendingProposal(SharedInstanceId) noexcept;
+    [[nodiscard]] bool completeProposal(SharedInstanceId, std::uint64_t, SharedProposalState, std::uint32_t resultCode = 0) noexcept;
 
 private:
     bool lock(std::uint32_t timeoutMs) noexcept;
     void unlock() noexcept;
     [[nodiscard]] std::uint64_t nowTickMs() const noexcept;
-    [[nodiscard]] bool recordMatches(const SharedInstanceRecord& record, SharedInstanceId id) const noexcept;
+    [[nodiscard]] bool recordMatches(const SharedInstanceRecord&, SharedInstanceId) const noexcept;
 
     void* mappingHandle_ {};
     void* mutexHandle_ {};

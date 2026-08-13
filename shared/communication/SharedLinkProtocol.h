@@ -11,9 +11,10 @@
 namespace ehvota::communication {
 
 constexpr std::uint32_t sharedLinkMagic = 0x4556484cU; // EVHL
-constexpr std::uint32_t sharedLinkVersion = 3U;
+constexpr std::uint32_t sharedLinkVersion = 4U;
 constexpr std::size_t sharedLinkMaxInstances = 64;
 constexpr std::size_t sharedLinkMaxOperations = 8;
+constexpr std::size_t sharedLinkMaxParameterValues = 32;
 constexpr std::size_t sharedLinkNameCapacity = 48;
 
 enum class SharedPluginKind : std::uint16_t {
@@ -53,6 +54,17 @@ struct SharedInstanceId {
     [[nodiscard]] bool valid() const noexcept { return slot != 0xffff; }
 };
 
+struct SharedParameterValue {
+    SharedParameterKey key { SharedParameterKey::none };
+    float value {};
+};
+
+struct SharedParameterSnapshot {
+    std::uint64_t revision {};
+    std::uint32_t count {};
+    std::array<SharedParameterValue, sharedLinkMaxParameterValues> values {};
+};
+
 struct SharedParameterOperation {
     SharedParameterKey key { SharedParameterKey::none };
     float expectedCurrentValue {};
@@ -77,6 +89,7 @@ struct SharedInstanceRecord {
     RefLinkRole role { RefLinkRole::unknown };
     std::array<char, sharedLinkNameCapacity> name {};
     RefLinkMetrics metrics {};
+    SharedParameterSnapshot parameters {};
     std::uint64_t heartbeatTickMs {};
     SharedProposalMailbox mailbox {};
 };
@@ -94,6 +107,9 @@ struct ParameterBounds { float minimum {}; float maximum {}; bool integerOnly {}
 
 [[nodiscard]] std::optional<ParameterBounds> sharedParameterBounds(SharedPluginKind, SharedParameterKey) noexcept;
 [[nodiscard]] bool sharedParameterAllowed(SharedPluginKind, SharedParameterKey) noexcept;
+[[nodiscard]] bool validateSharedParameterValue(SharedPluginKind, const SharedParameterValue&) noexcept;
+[[nodiscard]] bool validateSharedParameterSnapshot(SharedPluginKind, const SharedParameterSnapshot&) noexcept;
+[[nodiscard]] std::optional<float> sharedParameterValue(const SharedParameterSnapshot&, SharedParameterKey) noexcept;
 [[nodiscard]] bool validateSharedOperation(SharedPluginKind, const SharedParameterOperation&) noexcept;
 [[nodiscard]] bool validateSharedProposal(SharedPluginKind, const SharedProposalMailbox&) noexcept;
 [[nodiscard]] std::string_view sharedPluginKindName(SharedPluginKind) noexcept;
