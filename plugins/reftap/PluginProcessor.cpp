@@ -8,14 +8,21 @@ namespace ehvota::reftap {
 RefTapAudioProcessor::RefTapAudioProcessor()
     : AudioProcessor(BusesProperties()
           .withInput("Input", juce::AudioChannelSet::stereo(), true)
-          .withOutput("Output", juce::AudioChannelSet::stereo(), true))
+          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+      refLinkHandle_(ehvota::communication::RefLinkRegistry::instance().registerInstance(
+          ehvota::communication::RefLinkRole::unknown, "RefTap"))
 {
+}
+
+RefTapAudioProcessor::~RefTapAudioProcessor()
+{
+    ehvota::communication::RefLinkRegistry::instance().unregisterInstance(refLinkHandle_);
 }
 
 void RefTapAudioProcessor::prepareToPlay(const double sampleRate, const int)
 {
     sampleRate_ = sampleRate;
-    juce::ignoreUnused(sampleRate_);
+    sampleCounter_ = 0;
 }
 
 void RefTapAudioProcessor::releaseResources()
@@ -58,9 +65,12 @@ void RefTapAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         ? static_cast<float>(std::sqrt(sumSquares / static_cast<double>(sampleCount)))
         : 0.0f;
 
-    peakDb_.store(juce::Decibels::gainToDecibels(maxMagnitude, -100.0f), std::memory_order_relaxed);
-    rmsDb_.store(juce::Decibels::gainToDecibels(rms, -100.0f), std::memory_order_relaxed);
+    const auto peakDb = juce::Decibels::gainToDecibels(maxMagnitude, -100.0f);
+    const auto rmsDb = juce::Decibels::gainToDecibels(rms, -100.0f);
+    peakDb_.store(peakDb, std::memory_order_relaxed);
+    rmsDb_.store(rmsDb, std::memory_order_relaxed);
 
+    float correlation = 1.0f;
     if (channels >= 2) {
         const auto* left = buffer.getReadPointer(0);
         const auto* right = buffer.getReadPointer(1);
@@ -78,11 +88,19 @@ void RefTapAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
         const auto denominator = std::sqrt(ll * rr);
         const auto value = denominator > 1.0e-12 ? lr / denominator : 1.0;
-        correlation_.store(static_cast<float>(juce::jlimit(-1.0, 1.0, value)), std::memory_order_relaxed);
+        correlation = static_cast<float>(juce::jlimit(-1.0, 1.0, value));
     }
-    else {
-        correlation_.store(1.0f, std::memory_order_relaxed);
-    }
+    correlation_.store(correlation, std::memory_order_relaxed);
+
+    sampleCounter_ += static_cast<std::uint64_t>(samples);
+    const float crestDb = maxMagnitude > 0.0f && rms > 0.0f ? peakDb - rmsDb : 0.0f;
+    ehvota::communication::RefLinkRegistry::instance().publish(refLinkHandle_, {
+        peakDb,
+        rmsDb,
+        correlation,
+        crestDb,
+        sampleCounter_
+    });
 
     // RefTap is deliberately bit-transparent: the buffer is measured only and never modified.
 }
