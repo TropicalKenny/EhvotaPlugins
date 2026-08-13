@@ -63,6 +63,11 @@ target_link_libraries(EhvotaCapturedComparisonTests PRIVATE EhvotaState)
 target_compile_features(EhvotaCapturedComparisonTests PRIVATE cxx_std_20)
 add_test(NAME EhvotaCapturedComparisonTests COMMAND EhvotaCapturedComparisonTests)
 
+add_executable(EhvotaAuditionPolicyTests AuditionPolicyTests.cpp)
+target_link_libraries(EhvotaAuditionPolicyTests PRIVATE EhvotaSafety)
+target_compile_features(EhvotaAuditionPolicyTests PRIVATE cxx_std_20)
+add_test(NAME EhvotaAuditionPolicyTests COMMAND EhvotaAuditionPolicyTests)
+
 foreach(target
     EhvotaAbletonBridgeStateTests
     EhvotaLevelMatchStateTests
@@ -72,7 +77,8 @@ foreach(target
     EhvotaReferenceModelTests
     EhvotaAnalysisTests
     EhvotaLoudness1770Tests
-    EhvotaCapturedComparisonTests)
+    EhvotaCapturedComparisonTests
+    EhvotaAuditionPolicyTests)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /permissive-)
     else()
