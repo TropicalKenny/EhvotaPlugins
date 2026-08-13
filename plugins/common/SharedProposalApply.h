@@ -5,6 +5,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 
