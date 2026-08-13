@@ -1,105 +1,27 @@
-add_executable(EhvotaUnitTests
-    PreviewScenarioTests.cpp
-)
-
-target_link_libraries(EhvotaUnitTests
-    PRIVATE
-        EhvotaTiming
-        EhvotaViewModels
-)
-
-target_compile_features(EhvotaUnitTests PRIVATE cxx_std_20)
-
-if(MSVC)
-    target_compile_options(EhvotaUnitTests PRIVATE /W4 /permissive-)
-else()
-    target_compile_options(EhvotaUnitTests PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-add_test(NAME EhvotaUnitTests COMMAND EhvotaUnitTests)
-
-add_executable(EhvotaAbletonBridgeStateTests AbletonBridgeStateTests.cpp)
-target_link_libraries(EhvotaAbletonBridgeStateTests PRIVATE EhvotaViewModels)
-target_compile_features(EhvotaAbletonBridgeStateTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaAbletonBridgeStateTests COMMAND EhvotaAbletonBridgeStateTests)
-
-add_executable(EhvotaLevelMatchStateTests LevelMatchStateTests.cpp)
-target_link_libraries(EhvotaLevelMatchStateTests PRIVATE EhvotaViewModels)
-target_compile_features(EhvotaLevelMatchStateTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaLevelMatchStateTests COMMAND EhvotaLevelMatchStateTests)
-
-add_executable(EhvotaRefHubNavigationTests RefHubNavigationTests.cpp)
-target_link_libraries(EhvotaRefHubNavigationTests PRIVATE EhvotaViewModels)
-target_compile_features(EhvotaRefHubNavigationTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaRefHubNavigationTests COMMAND EhvotaRefHubNavigationTests)
-
-add_executable(EhvotaBridgeProtocolTests BridgeProtocolTests.cpp)
-target_link_libraries(EhvotaBridgeProtocolTests PRIVATE EhvotaCommunication)
-target_compile_features(EhvotaBridgeProtocolTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaBridgeProtocolTests COMMAND EhvotaBridgeProtocolTests)
-
-add_executable(EhvotaProposalPolicyTests ProposalPolicyTests.cpp)
-target_link_libraries(EhvotaProposalPolicyTests PRIVATE EhvotaSafety)
-target_compile_features(EhvotaProposalPolicyTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaProposalPolicyTests COMMAND EhvotaProposalPolicyTests)
-
-add_executable(EhvotaReferenceModelTests ReferenceModelTests.cpp)
-target_link_libraries(EhvotaReferenceModelTests PRIVATE EhvotaState)
-target_compile_features(EhvotaReferenceModelTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaReferenceModelTests COMMAND EhvotaReferenceModelTests)
-
-add_executable(EhvotaAnalysisTests AnalysisTests.cpp)
-target_link_libraries(EhvotaAnalysisTests PRIVATE EhvotaAnalysis)
-target_compile_features(EhvotaAnalysisTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaAnalysisTests COMMAND EhvotaAnalysisTests)
-
-add_executable(EhvotaLoudness1770Tests Loudness1770Tests.cpp)
-target_link_libraries(EhvotaLoudness1770Tests PRIVATE EhvotaAnalysis)
-target_compile_features(EhvotaLoudness1770Tests PRIVATE cxx_std_20)
-add_test(NAME EhvotaLoudness1770Tests COMMAND EhvotaLoudness1770Tests)
-
-add_executable(EhvotaCapturedComparisonTests CapturedComparisonTests.cpp)
-target_link_libraries(EhvotaCapturedComparisonTests PRIVATE EhvotaState)
-target_compile_features(EhvotaCapturedComparisonTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaCapturedComparisonTests COMMAND EhvotaCapturedComparisonTests)
-
-add_executable(EhvotaAuditionPolicyTests AuditionPolicyTests.cpp)
-target_link_libraries(EhvotaAuditionPolicyTests PRIVATE EhvotaSafety)
-target_compile_features(EhvotaAuditionPolicyTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaAuditionPolicyTests COMMAND EhvotaAuditionPolicyTests)
-
-add_executable(EhvotaRefLinkRegistryTests RefLinkRegistryTests.cpp)
-target_link_libraries(EhvotaRefLinkRegistryTests PRIVATE EhvotaCommunication)
-target_compile_features(EhvotaRefLinkRegistryTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaRefLinkRegistryTests COMMAND EhvotaRefLinkRegistryTests)
-
-add_executable(EhvotaReferenceFolderRulesTests ReferenceFolderRulesTests.cpp)
-target_link_libraries(EhvotaReferenceFolderRulesTests PRIVATE EhvotaState)
-target_compile_features(EhvotaReferenceFolderRulesTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaReferenceFolderRulesTests COMMAND EhvotaReferenceFolderRulesTests)
-
-add_executable(EhvotaCaptureBufferTests CaptureBufferTests.cpp)
-target_link_libraries(EhvotaCaptureBufferTests PRIVATE EhvotaAudio)
-target_compile_features(EhvotaCaptureBufferTests PRIVATE cxx_std_20)
-add_test(NAME EhvotaCaptureBufferTests COMMAND EhvotaCaptureBufferTests)
-
-foreach(target
-    EhvotaAbletonBridgeStateTests
-    EhvotaLevelMatchStateTests
-    EhvotaRefHubNavigationTests
-    EhvotaBridgeProtocolTests
-    EhvotaProposalPolicyTests
-    EhvotaReferenceModelTests
-    EhvotaAnalysisTests
-    EhvotaLoudness1770Tests
-    EhvotaCapturedComparisonTests
-    EhvotaAuditionPolicyTests
-    EhvotaRefLinkRegistryTests
-    EhvotaReferenceFolderRulesTests
-    EhvotaCaptureBufferTests)
+function(ehvota_add_portable_test TARGET SOURCE)
+    add_executable(${TARGET} ${SOURCE})
+    target_link_libraries(${TARGET} PRIVATE ${ARGN})
+    target_compile_features(${TARGET} PRIVATE cxx_std_20)
     if(MSVC)
-        target_compile_options(${target} PRIVATE /W4 /permissive-)
+        target_compile_options(${TARGET} PRIVATE /W4 /permissive-)
     else()
-        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(${TARGET} PRIVATE -Wall -Wextra -Wpedantic)
     endif()
-endforeach()
+    add_test(NAME ${TARGET} COMMAND ${TARGET})
+endfunction()
+
+ehvota_add_portable_test(EhvotaUnitTests PreviewScenarioTests.cpp EhvotaTiming EhvotaViewModels)
+ehvota_add_portable_test(EhvotaAbletonBridgeStateTests AbletonBridgeStateTests.cpp EhvotaViewModels)
+ehvota_add_portable_test(EhvotaLevelMatchStateTests LevelMatchStateTests.cpp EhvotaViewModels)
+ehvota_add_portable_test(EhvotaRefHubNavigationTests RefHubNavigationTests.cpp EhvotaViewModels)
+ehvota_add_portable_test(EhvotaBridgeProtocolTests BridgeProtocolTests.cpp EhvotaCommunication)
+ehvota_add_portable_test(EhvotaProposalPolicyTests ProposalPolicyTests.cpp EhvotaSafety)
+ehvota_add_portable_test(EhvotaReferenceModelTests ReferenceModelTests.cpp EhvotaState)
+ehvota_add_portable_test(EhvotaAnalysisTests AnalysisTests.cpp EhvotaAnalysis)
+ehvota_add_portable_test(EhvotaLoudness1770Tests Loudness1770Tests.cpp EhvotaAnalysis)
+ehvota_add_portable_test(EhvotaCapturedComparisonTests CapturedComparisonTests.cpp EhvotaState)
+ehvota_add_portable_test(EhvotaAuditionPolicyTests AuditionPolicyTests.cpp EhvotaSafety)
+ehvota_add_portable_test(EhvotaRefLinkRegistryTests RefLinkRegistryTests.cpp EhvotaCommunication)
+ehvota_add_portable_test(EhvotaReferenceFolderRulesTests ReferenceFolderRulesTests.cpp EhvotaState)
+ehvota_add_portable_test(EhvotaCaptureBufferTests CaptureBufferTests.cpp EhvotaAudio)
+ehvota_add_portable_test(EhvotaComparisonAnalysisTests ComparisonAnalysisTests.cpp EhvotaAnalysis)
