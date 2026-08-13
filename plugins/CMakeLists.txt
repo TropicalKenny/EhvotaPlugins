@@ -41,6 +41,8 @@ function(ehvota_add_plugin TARGET_NAME PRODUCT_NAME PLUGIN_CODE SOURCE_DIR)
             EhvotaTiming
             EhvotaCommunication
             EhvotaSafety
+            EhvotaAnalysis
+            EhvotaState
         PUBLIC
             juce::juce_recommended_config_flags
             juce::juce_recommended_lto_flags
