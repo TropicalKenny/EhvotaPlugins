@@ -1,15 +1,18 @@
 #pragma once
 
+#include "shared/communication/RefLinkRegistry.h"
+
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <atomic>
+#include <cstdint>
 
 namespace ehvota::reftap {
 
 class RefTapAudioProcessor final : public juce::AudioProcessor {
 public:
     RefTapAudioProcessor();
-    ~RefTapAudioProcessor() override = default;
+    ~RefTapAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -43,6 +46,8 @@ private:
     std::atomic<float> rmsDb_ { -100.0f };
     std::atomic<float> correlation_ { 1.0f };
     double sampleRate_ { 44100.0 };
+    std::uint64_t sampleCounter_ {};
+    ehvota::communication::RefLinkHandle refLinkHandle_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RefTapAudioProcessor)
 };
