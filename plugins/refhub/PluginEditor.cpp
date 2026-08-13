@@ -44,8 +44,9 @@ void drawWave(juce::Graphics& g, const juce::Rectangle<float> area, const juce::
 RefHubAudioProcessorEditor::RefHubAudioProcessorEditor(RefHubAudioProcessor& processor)
     : AudioProcessorEditor(&processor), processor_(processor)
 {
-    referenceSelector_.addItem("Ayo Nights", 1);
+    referenceSelector_.addItem("No reference loaded", 1);
     referenceSelector_.setSelectedId(1, juce::dontSendNotification);
+    referenceSelector_.setEnabled(false);
     sectionSelector_.addItem("Chorus 1", 1);
     sectionSelector_.addItem("Verse 1", 2);
     sectionSelector_.setSelectedId(1, juce::dontSendNotification);
@@ -54,17 +55,38 @@ RefHubAudioProcessorEditor::RefHubAudioProcessorEditor(RefHubAudioProcessor& pro
     levelMatchSelector_.addItem("OFF", 3);
     levelMatchSelector_.setSelectedId(1, juce::dontSendNotification);
 
-    for (auto* component : { static_cast<juce::Component*>(&referenceSelector_), static_cast<juce::Component*>(&sectionSelector_), static_cast<juce::Component*>(&levelMatchSelector_), static_cast<juce::Component*>(&mixButton_), static_cast<juce::Component*>(&referenceButton_), static_cast<juce::Component*>(&blindButton_), static_cast<juce::Component*>(&captureButton_), static_cast<juce::Component*>(&proposalButton_), static_cast<juce::Component*>(&liveMeterLabel_) })
+    for (auto* component : {
+             static_cast<juce::Component*>(&loadFolderButton_),
+             static_cast<juce::Component*>(&referenceSelector_),
+             static_cast<juce::Component*>(&sectionSelector_),
+             static_cast<juce::Component*>(&levelMatchSelector_),
+             static_cast<juce::Component*>(&mixButton_),
+             static_cast<juce::Component*>(&referenceButton_),
+             static_cast<juce::Component*>(&blindButton_),
+             static_cast<juce::Component*>(&captureButton_),
+             static_cast<juce::Component*>(&proposalButton_),
+             static_cast<juce::Component*>(&liveMeterLabel_) })
         addAndMakeVisible(*component);
+
+    loadFolderButton_.setTooltip("Open one reference folder containing the authoritative full mix and optional drums, bass, vocals, and music stems.");
+    loadFolderButton_.onClick = [this] { chooseReferenceFolder(); };
 
     mixButton_.setClickingTogglesState(true);
     referenceButton_.setClickingTogglesState(true);
+    referenceButton_.setEnabled(false);
     mixButton_.setToggleState(true, juce::dontSendNotification);
     mixButton_.onClick = [this] {
+        processor_.stopReferenceAudition();
         mixButton_.setToggleState(true, juce::dontSendNotification);
         referenceButton_.setToggleState(false, juce::dontSendNotification);
     };
     referenceButton_.onClick = [this] {
+        if (!processor_.hasReferenceLoaded()) {
+            referenceButton_.setToggleState(false, juce::dontSendNotification);
+            mixButton_.setToggleState(true, juce::dontSendNotification);
+            return;
+        }
+        processor_.startReferenceAudition();
         referenceButton_.setToggleState(true, juce::dontSendNotification);
         mixButton_.setToggleState(false, juce::dontSendNotification);
     };
@@ -77,6 +99,67 @@ RefHubAudioProcessorEditor::RefHubAudioProcessorEditor(RefHubAudioProcessor& pro
     setResizeLimits(860, 600, 1800, 1200);
     setSize(1180, 760);
     startTimerHz(15);
+}
+
+void RefHubAudioProcessorEditor::chooseReferenceFolder()
+{
+    folderChooser_ = std::make_unique<juce::FileChooser>(
+        "Choose an Ehvota reference folder",
+        juce::File::getSpecialLocation(juce::File::userMusicDirectory));
+
+    folderChooser_->launchAsync(
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+        [safe = juce::Component::SafePointer<RefHubAudioProcessorEditor>(this)](const juce::FileChooser& chooser) {
+            if (safe == nullptr)
+                return;
+            const auto directory = chooser.getResult();
+            if (directory != juce::File{})
+                safe->applyReferenceFolder(directory);
+        });
+}
+
+void RefHubAudioProcessorEditor::applyReferenceFolder(const juce::File& directory)
+{
+    processor_.stopReferenceAudition();
+    loadedReference_ = loadReferenceFolder(directory);
+
+    juce::String validationText;
+    for (const auto& issue : loadedReference_.validation.issues) {
+        if (validationText.isNotEmpty())
+            validationText << "\n";
+        validationText << (issue.blocking ? "Blocking: " : "Note: ") << issue.message;
+    }
+
+    if (!loadedReference_.validation.valid || !loadedReference_.authoritativeFullMixFile.existsAsFile()) {
+        processor_.unloadReferenceFile();
+        referenceSelector_.clear(juce::dontSendNotification);
+        referenceSelector_.addItem("Invalid reference folder", 1);
+        referenceSelector_.setSelectedId(1, juce::dontSendNotification);
+        referenceSelector_.setTooltip(validationText);
+        referenceSelector_.setEnabled(false);
+        referenceButton_.setEnabled(false);
+        mixButton_.triggerClick();
+        return;
+    }
+
+    if (!processor_.loadReferenceFile(loadedReference_.authoritativeFullMixFile)) {
+        referenceSelector_.clear(juce::dontSendNotification);
+        referenceSelector_.addItem("Could not load full mix", 1);
+        referenceSelector_.setSelectedId(1, juce::dontSendNotification);
+        referenceSelector_.setEnabled(false);
+        referenceButton_.setEnabled(false);
+        return;
+    }
+
+    referenceSelector_.clear(juce::dontSendNotification);
+    referenceSelector_.addItem(juce::String(loadedReference_.package.name), 1);
+    referenceSelector_.setSelectedId(1, juce::dontSendNotification);
+    referenceSelector_.setTooltip(validationText.isNotEmpty()
+        ? validationText
+        : "Reference package validated. The full mix is authoritative; separated stems remain diagnostic.");
+    referenceSelector_.setEnabled(true);
+    referenceButton_.setEnabled(true);
+    repaint();
 }
 
 void RefHubAudioProcessorEditor::paint(juce::Graphics& g)
@@ -228,14 +311,15 @@ void RefHubAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds().reduced(12);
     auto header = bounds.removeFromTop(62);
-    header.removeFromLeft(310);
-    referenceSelector_.setBounds(header.removeFromLeft(160).reduced(3, 10));
-    sectionSelector_.setBounds(header.removeFromLeft(145).reduced(3, 10));
-    mixButton_.setBounds(header.removeFromLeft(62).reduced(2, 10));
-    referenceButton_.setBounds(header.removeFromLeft(62).reduced(2, 10));
-    blindButton_.setBounds(header.removeFromLeft(72).reduced(2, 10));
-    captureButton_.setBounds(header.removeFromLeft(86).reduced(2, 10));
-    levelMatchSelector_.setBounds(header.removeFromLeft(138).reduced(2, 10));
+    header.removeFromLeft(200);
+    loadFolderButton_.setBounds(header.removeFromLeft(98).reduced(2, 10));
+    referenceSelector_.setBounds(header.removeFromLeft(148).reduced(3, 10));
+    sectionSelector_.setBounds(header.removeFromLeft(122).reduced(3, 10));
+    mixButton_.setBounds(header.removeFromLeft(52).reduced(2, 10));
+    referenceButton_.setBounds(header.removeFromLeft(52).reduced(2, 10));
+    blindButton_.setBounds(header.removeFromLeft(62).reduced(2, 10));
+    captureButton_.setBounds(header.removeFromLeft(76).reduced(2, 10));
+    levelMatchSelector_.setBounds(header.removeFromLeft(126).reduced(2, 10));
     liveMeterLabel_.setBounds(header.reduced(4, 10));
 
     bounds.removeFromLeft(92);
@@ -251,6 +335,11 @@ void RefHubAudioProcessorEditor::timerCallback()
     liveMeterLabel_.setText(
         "Peak " + juce::String(processor_.livePeakDb(), 1) + " dBFS · RMS " + juce::String(processor_.liveRmsDb(), 1) + " dBFS",
         juce::dontSendNotification);
+
+    if (referenceButton_.getToggleState() && !processor_.referenceAuditionActive()) {
+        referenceButton_.setToggleState(false, juce::dontSendNotification);
+        mixButton_.setToggleState(true, juce::dontSendNotification);
+    }
 }
 
 } // namespace ehvota::refhub
