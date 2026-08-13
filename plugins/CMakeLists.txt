@@ -32,6 +32,7 @@ function(ehvota_add_plugin TARGET_NAME PRODUCT_NAME PLUGIN_CODE SOURCE_DIR)
         PRIVATE
             JUCE_WEB_BROWSER=0
             JUCE_USE_CURL=0
+            JUCE_VST3_CAN_REPLACE_VST2=0
     )
 
     target_link_libraries(${TARGET_NAME}
