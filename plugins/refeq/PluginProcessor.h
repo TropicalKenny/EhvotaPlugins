@@ -72,7 +72,7 @@ private:
     };
 
     void updateFilters(int blockSamples) noexcept;
-    [[nodiscard]] bool isNeutral() const noexcept;
+    [[nodiscard]] bool isNeutral() noexcept;
 
     juce::AudioProcessorValueTreeState parameters_;
     ehvota::audio::StereoBiquad highPass_;
