@@ -24,6 +24,7 @@ option(EHVOTA_BUILD_TESTS "Build deterministic non-audio tests" ON)
 add_subdirectory(shared/timing)
 add_subdirectory(shared/viewmodels)
 add_subdirectory(shared/communication)
+add_subdirectory(shared/safety)
 
 if(EHVOTA_BUILD_UI_PREVIEW)
     if(NOT WIN32)
