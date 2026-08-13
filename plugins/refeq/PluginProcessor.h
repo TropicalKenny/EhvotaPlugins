@@ -1,7 +1,10 @@
 #pragma once
 
+#include "shared/audio/Biquad.h"
+
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <juce_dsp/juce_dsp.h>
+
+#include <array>
 
 namespace ehvota::refeq {
 
@@ -37,18 +40,48 @@ public:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
-    using Filter = juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>;
+    struct SmoothValue {
+        double current {};
+        bool initialised {};
 
-    void updateFilters();
+        double follow(double target, double amount) noexcept
+        {
+            if (!initialised) {
+                current = target;
+                initialised = true;
+            }
+            else {
+                current += (target - current) * amount;
+            }
+            return current;
+        }
+
+        void snap(double value) noexcept
+        {
+            current = value;
+            initialised = true;
+        }
+    };
+
+    struct BandState {
+        ehvota::audio::StereoBiquad filter;
+        SmoothValue frequency;
+        SmoothValue gainDb;
+        SmoothValue q;
+        double activeGainDb {};
+    };
+
+    void updateFilters(int blockSamples) noexcept;
+    [[nodiscard]] bool isNeutral() const noexcept;
 
     juce::AudioProcessorValueTreeState parameters_;
-    Filter highPass_;
-    Filter band1_;
-    Filter band2_;
-    Filter band3_;
-    Filter band4_;
-    Filter lowPass_;
-    juce::dsp::Gain<float> outputGain_;
+    ehvota::audio::StereoBiquad highPass_;
+    ehvota::audio::StereoBiquad lowPass_;
+    std::array<BandState, 6> bands_ {};
+    SmoothValue highPassFrequency_;
+    SmoothValue lowPassFrequency_;
+    SmoothValue outputDb_;
+    double activeOutputGain_ { 1.0 };
     double sampleRate_ { 44100.0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RefEQAudioProcessor)
