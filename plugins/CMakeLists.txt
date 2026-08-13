@@ -51,6 +51,11 @@ function(ehvota_add_plugin TARGET_NAME PRODUCT_NAME PLUGIN_CODE SOURCE_DIR)
 endfunction()
 
 ehvota_add_plugin(EhvotaRefHub "Ehvota RefHub" RfHb "${CMAKE_CURRENT_SOURCE_DIR}/refhub")
+target_sources(EhvotaRefHub PRIVATE
+    refhub/ReferenceFolderLoader.cpp
+    refhub/ReferenceFolderLoader.h
+)
+
 ehvota_add_plugin(EhvotaRefTap "Ehvota RefTap" RfTp "${CMAKE_CURRENT_SOURCE_DIR}/reftap")
 ehvota_add_plugin(EhvotaRefEQ "Ehvota RefEQ" RfEq "${CMAKE_CURRENT_SOURCE_DIR}/refeq")
 ehvota_add_plugin(EhvotaRefComp "Ehvota RefComp" RfCp "${CMAKE_CURRENT_SOURCE_DIR}/refcomp")
