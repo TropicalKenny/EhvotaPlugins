@@ -29,6 +29,19 @@ bool hasConnectedLiveSource(
     return true;
 }
 
+bool mappingHasMatchingReference(
+    const MappingEntry& mapping,
+    const ReferencePackage& reference,
+    const ReferenceRole role)
+{
+    if (!mapping.enabled || mapping.role != role)
+        return false;
+    const auto source = std::find_if(reference.sources.begin(), reference.sources.end(), [&](const auto& candidate) {
+        return candidate.id == mapping.referenceSourceId;
+    });
+    return source != reference.sources.end() && source->role == role;
+}
+
 } // namespace
 
 bool AnalysisScope::includes(const ReferenceRole role) const noexcept
@@ -87,14 +100,13 @@ std::array<ScopeAvailability, 4> evaluateScopeAvailability(
         availability.role = role;
         availability.requested = scope.includes(role);
 
-        availability.hasReferenceStem = std::any_of(reference.sources.begin(), reference.sources.end(), [&](const auto& source) {
-            return source.role == role;
-        });
-
         const auto mapping = std::find_if(mappings.begin(), mappings.end(), [&](const auto& entry) {
-            return entry.role == role;
+            return entry.role == role && entry.enabled;
         });
-        availability.hasLiveMapping = mapping != mappings.end() && hasConnectedLiveSource(*mapping, liveSources);
+        availability.hasReferenceStem = mapping != mappings.end()
+            && mappingHasMatchingReference(*mapping, reference, role);
+        availability.hasLiveMapping = mapping != mappings.end()
+            && hasConnectedLiveSource(*mapping, liveSources);
         availability.usable = availability.requested
             && availability.hasReferenceStem
             && availability.hasLiveMapping;
