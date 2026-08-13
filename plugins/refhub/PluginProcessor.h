@@ -1,8 +1,10 @@
 #pragma once
 
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <atomic>
+#include <memory>
 
 namespace ehvota::refhub {
 
@@ -37,9 +39,29 @@ public:
     float livePeakDb() const noexcept { return livePeakDb_.load(std::memory_order_relaxed); }
     float liveRmsDb() const noexcept { return liveRmsDb_.load(std::memory_order_relaxed); }
 
+    bool loadReferenceFile(const juce::File& file);
+    void unloadReferenceFile();
+    void startReferenceAudition();
+    void stopReferenceAudition();
+    void setReferenceMonitorTrimDb(float trimDb) noexcept;
+    void setRenderSafe(bool enabled) noexcept { renderSafe_.store(enabled, std::memory_order_release); }
+
+    [[nodiscard]] bool hasReferenceLoaded() const noexcept { return referenceLoaded_.load(std::memory_order_acquire); }
+    [[nodiscard]] bool referenceAuditionActive() const noexcept { return referenceAudition_.load(std::memory_order_acquire); }
+    [[nodiscard]] float referenceMonitorTrimDb() const noexcept { return referenceTrimDb_.load(std::memory_order_relaxed); }
+    [[nodiscard]] bool renderSafe() const noexcept { return renderSafe_.load(std::memory_order_acquire); }
+
 private:
+    juce::AudioFormatManager formatManager_;
+    std::unique_ptr<juce::AudioFormatReaderSource> referenceReaderSource_;
+    juce::AudioTransportSource referenceTransport_;
+
     std::atomic<float> livePeakDb_ { -100.0f };
     std::atomic<float> liveRmsDb_ { -100.0f };
+    std::atomic<float> referenceTrimDb_ { 0.0f };
+    std::atomic<bool> referenceLoaded_ { false };
+    std::atomic<bool> referenceAudition_ { false };
+    std::atomic<bool> renderSafe_ { true };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RefHubAudioProcessor)
 };
