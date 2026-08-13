@@ -8,6 +8,7 @@
 #include "shared/audio/CaptureBuffer.h"
 #include "shared/safety/ProposalHistory.h"
 #include "shared/safety/ProposalPolicy.h"
+#include "shared/state/MappingIdentity.h"
 
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -88,6 +89,7 @@ public:
     void stopReferenceAudition();
     void setReferenceMonitorTrimDb(float trimDb) noexcept;
     void setRenderSafe(bool enabled) noexcept { renderSafe_.store(enabled, std::memory_order_release); }
+    [[nodiscard]] juce::String savedReferencePath() const;
 
     [[nodiscard]] bool beginMixCapture(double durationSeconds) noexcept;
     void cancelMixCapture() noexcept;
@@ -95,13 +97,10 @@ public:
     [[nodiscard]] double mixCaptureProgress() const noexcept { return mixCapture_.progress(); }
     [[nodiscard]] ehvota::audio::CaptureView completedMixCapture() const noexcept { return mixCapture_.completedView(); }
 
-    // Analysis-only path: RefHub can compare and level-match without any linked processor installed.
     [[nodiscard]] bool startSectionAnalysis(
         double referenceStartSeconds,
         double referenceDurationSeconds,
         std::string sectionId);
-
-    // Convenience path that also stages a bounded RefEQ proposal after the same analysis completes.
     [[nodiscard]] bool startSectionAnalysis(
         ehvota::communication::SharedInstanceId refEqTarget,
         double referenceStartSeconds,
@@ -129,16 +128,13 @@ public:
             ehvota::communication::sharedLinkMaxInstances>& destination) const;
     [[nodiscard]] ehvota::communication::SharedLinkOpenStatus refLinkStatus() const noexcept { return refLink_.status(); }
 
-    // Runtime mapping from a semantic reference role to the RefTap on the corresponding live bus.
-    // Mappings are accepted only for currently fresh RefTap instances.
     [[nodiscard]] bool setComponentMapping(
         ehvota::state::ReferenceRole role,
         ehvota::communication::SharedInstanceId refTap);
     void clearComponentMapping(ehvota::state::ReferenceRole role);
     [[nodiscard]] std::array<RuntimeComponentMapping, 4> copyComponentMappings() const;
+    [[nodiscard]] std::array<ehvota::state::SavedComponentBinding, 4> copySavedComponentBindings() const;
 
-    // Schedules every requested mapped component to one common future Ableton host-sample position.
-    // Raw bus audio remains local to each RefTap; only bounded analysis summaries cross RefLink.
     [[nodiscard]] bool beginComponentCapture(
         double liveDurationSeconds,
         double referenceStartSeconds,
@@ -170,10 +166,15 @@ private:
         std::string sectionId);
     void timerCallback() override;
     void applyResolvedSectionLevelMatch();
+    void recoverSavedComponentMappings(
+        const std::array<ehvota::communication::SharedInstanceSnapshot,
+            ehvota::communication::sharedLinkMaxInstances>& snapshots,
+        std::size_t count);
     void reconcileStagedProposal(
         const std::array<ehvota::communication::SharedInstanceSnapshot,
             ehvota::communication::sharedLinkMaxInstances>& snapshots,
         std::size_t count);
+    void restoreReferenceFromSavedPath();
     void stopAnalysisThread() noexcept;
 
     juce::AudioFormatManager formatManager_;
@@ -181,6 +182,8 @@ private:
     juce::AudioTransportSource referenceTransport_;
     mutable juce::CriticalSection referenceLock_;
     juce::File referenceFile_;
+    juce::String savedReferencePath_;
+    bool referenceRestoreAttempted_ {};
     std::atomic<std::uint64_t> referenceGeneration_ { 1 };
     ehvota::audio::CaptureBuffer mixCapture_;
 
@@ -212,6 +215,8 @@ private:
         ehvota::communication::sharedLinkMaxInstances> linkedInstances_ {};
     std::atomic<std::size_t> linkedCount_ {};
     ComponentCaptureCoordinator componentCoordinator_;
+    mutable juce::CriticalSection savedMappingLock_;
+    std::array<ehvota::state::SavedComponentBinding, 4> savedComponentBindings_;
 
     mutable juce::CriticalSection proposalLock_;
     std::optional<ehvota::safety::Proposal> stagedProposal_;
