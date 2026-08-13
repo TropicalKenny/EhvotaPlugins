@@ -7,6 +7,8 @@ add_library(EhvotaState STATIC
     SectionModel.h
     AnalysisScope.cpp
     AnalysisScope.h
+    MappingValidation.cpp
+    MappingValidation.h
     CapturedComparison.cpp
     CapturedComparison.h
 )
