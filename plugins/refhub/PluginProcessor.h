@@ -15,8 +15,17 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 
 namespace ehvota::refhub {
+
+enum class SectionAnalysisState : std::uint8_t {
+    idle,
+    running,
+    proposalReady,
+    noProposal,
+    error
+};
 
 class RefHubAudioProcessor final : public juce::AudioProcessor, private juce::Timer {
 public:
@@ -53,11 +62,22 @@ public:
     void setReferenceMonitorTrimDb(float trimDb) noexcept;
     void setRenderSafe(bool enabled) noexcept { renderSafe_.store(enabled, std::memory_order_release); }
 
-    [[nodiscard]] bool beginMixCapture(double durationSeconds) noexcept { return mixCapture_.arm(durationSeconds); }
-    void cancelMixCapture() noexcept { mixCapture_.cancel(); }
+    [[nodiscard]] bool beginMixCapture(double durationSeconds) noexcept;
+    void cancelMixCapture() noexcept;
     [[nodiscard]] ehvota::audio::CaptureState mixCaptureState() const noexcept { return mixCapture_.state(); }
     [[nodiscard]] double mixCaptureProgress() const noexcept { return mixCapture_.progress(); }
     [[nodiscard]] ehvota::audio::CaptureView completedMixCapture() const noexcept { return mixCapture_.completedView(); }
+
+    // The mix and reference songs do not need matching absolute timelines. The caller supplies
+    // the paired reference-section start; captured mix duration defines the comparison length.
+    [[nodiscard]] bool startSectionAnalysis(
+        ehvota::communication::SharedInstanceId refEqTarget,
+        double referenceStartSeconds,
+        std::string sectionId);
+    [[nodiscard]] SectionAnalysisState sectionAnalysisState() const noexcept {
+        return analysisState_.load(std::memory_order_acquire);
+    }
+    [[nodiscard]] std::optional<ehvota::analysis::SectionComparison> copyLatestComparison() const;
 
     [[nodiscard]] bool hasReferenceLoaded() const noexcept { return referenceLoaded_.load(std::memory_order_acquire); }
     [[nodiscard]] bool referenceAuditionActive() const noexcept { return referenceAudition_.load(std::memory_order_acquire); }
@@ -70,18 +90,13 @@ public:
             ehvota::communication::sharedLinkMaxInstances>& destination) const;
     [[nodiscard]] ehvota::communication::SharedLinkOpenStatus refLinkStatus() const noexcept { return refLink_.status(); }
 
-    // Stage is analysis-only. It never marks a recommendation approved or writes a target plugin.
     [[nodiscard]] bool stageRefEqProposal(
         const ehvota::analysis::SectionComparison& comparison,
         ehvota::communication::SharedInstanceId target,
         std::string evidenceId);
     [[nodiscard]] std::optional<ehvota::safety::Proposal> copyStagedProposal() const;
     void rejectStagedProposal();
-
-    // Explicit approval is a separate action. Only this path can move a staged proposal into RefLink.
     [[nodiscard]] bool approveAndSubmitStagedProposal();
-
-    // Deliberately the only low-level RefHub cross-plugin write API.
     [[nodiscard]] bool submitApprovedProposal(
         const ehvota::safety::Proposal& proposal,
         ehvota::communication::SharedInstanceId target);
@@ -92,10 +107,12 @@ private:
         const std::array<ehvota::communication::SharedInstanceSnapshot,
             ehvota::communication::sharedLinkMaxInstances>& snapshots,
         std::size_t count);
+    void stopAnalysisThread() noexcept;
 
     juce::AudioFormatManager formatManager_;
     std::unique_ptr<juce::AudioFormatReaderSource> referenceReaderSource_;
     juce::AudioTransportSource referenceTransport_;
+    juce::File referenceFile_;
     ehvota::audio::CaptureBuffer mixCapture_;
 
     std::atomic<float> livePeakDb_ { -100.0f };
@@ -105,6 +122,12 @@ private:
     std::atomic<bool> referenceLoaded_ { false };
     std::atomic<bool> referenceAudition_ { false };
     std::atomic<bool> renderSafe_ { true };
+
+    std::jthread analysisThread_;
+    std::atomic<bool> analysisRunning_ { false };
+    std::atomic<SectionAnalysisState> analysisState_ { SectionAnalysisState::idle };
+    mutable juce::CriticalSection comparisonLock_;
+    std::optional<ehvota::analysis::SectionComparison> latestComparison_;
 
     ehvota::plugins::RefLinkEndpoint refLink_ {
         ehvota::communication::SharedPluginKind::refHub,

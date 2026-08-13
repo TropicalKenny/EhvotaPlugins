@@ -1,10 +1,14 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "ReferenceSectionReader.h"
+#include "shared/analysis/CapturedSectionAnalysis.h"
 #include "shared/safety/LinkProposalAdapter.h"
 #include "shared/safety/ReferenceProposalGenerator.h"
 
 #include <cmath>
 #include <span>
+#include <utility>
+#include <vector>
 
 namespace ehvota::refhub {
 
@@ -17,7 +21,20 @@ RefHubAudioProcessor::RefHubAudioProcessor()
     startTimerHz(10);
 }
 
-RefHubAudioProcessor::~RefHubAudioProcessor() { stopTimer(); }
+RefHubAudioProcessor::~RefHubAudioProcessor()
+{
+    stopTimer();
+    stopAnalysisThread();
+}
+
+void RefHubAudioProcessor::stopAnalysisThread() noexcept
+{
+    if (!analysisThread_.joinable())
+        return;
+    analysisThread_.request_stop();
+    analysisThread_.join();
+    analysisRunning_.store(false, std::memory_order_release);
+}
 
 void RefHubAudioProcessor::prepareToPlay(const double sampleRate, const int samplesPerBlock)
 {
@@ -52,6 +69,7 @@ bool RefHubAudioProcessor::loadReferenceFile(const juce::File& file)
     referenceReaderSource_ = std::make_unique<juce::AudioFormatReaderSource>(reader.release(), true);
     referenceTransport_.setSource(referenceReaderSource_.get(), 0, nullptr, sourceRate, 2);
     referenceTransport_.setPosition(0.0);
+    referenceFile_ = file;
     referenceLoaded_.store(true, std::memory_order_release);
     return true;
 }
@@ -61,6 +79,7 @@ void RefHubAudioProcessor::unloadReferenceFile()
     stopReferenceAudition();
     referenceTransport_.setSource(nullptr);
     referenceReaderSource_.reset();
+    referenceFile_ = {};
     referenceLoaded_.store(false, std::memory_order_release);
 }
 
@@ -83,6 +102,115 @@ void RefHubAudioProcessor::stopReferenceAudition()
 void RefHubAudioProcessor::setReferenceMonitorTrimDb(const float db) noexcept
 {
     referenceTrimDb_.store(juce::jlimit(-24.0f, 24.0f, db), std::memory_order_relaxed);
+}
+
+bool RefHubAudioProcessor::beginMixCapture(const double durationSeconds) noexcept
+{
+    if (analysisRunning_.load(std::memory_order_acquire))
+        return false;
+    return mixCapture_.arm(durationSeconds);
+}
+
+void RefHubAudioProcessor::cancelMixCapture() noexcept
+{
+    if (!analysisRunning_.load(std::memory_order_acquire))
+        mixCapture_.cancel();
+}
+
+bool RefHubAudioProcessor::startSectionAnalysis(
+    const ehvota::communication::SharedInstanceId refEqTarget,
+    const double referenceStartSeconds,
+    std::string sectionId)
+{
+    if (!refEqTarget.valid() || !(referenceStartSeconds >= 0.0) || sectionId.empty()
+        || !hasReferenceLoaded() || !referenceFile_.existsAsFile())
+        return false;
+
+    if (const auto staged = copyStagedProposal()) {
+        if (staged->state == ehvota::safety::ProposalState::readyForReview
+            || staged->state == ehvota::safety::ProposalState::approved)
+            return false;
+    }
+
+    bool expected = false;
+    if (!analysisRunning_.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
+        return false;
+
+    const auto capture = mixCapture_.completedView();
+    if (capture.left.empty() || capture.right.empty() || !(capture.sampleRate > 0.0)) {
+        analysisRunning_.store(false, std::memory_order_release);
+        analysisState_.store(SectionAnalysisState::error, std::memory_order_release);
+        return false;
+    }
+
+    std::vector<float> mixLeft;
+    std::vector<float> mixRight;
+    try {
+        mixLeft.assign(capture.left.begin(), capture.left.end());
+        mixRight.assign(capture.right.begin(), capture.right.end());
+    } catch (...) {
+        analysisRunning_.store(false, std::memory_order_release);
+        analysisState_.store(SectionAnalysisState::error, std::memory_order_release);
+        return false;
+    }
+
+    if (analysisThread_.joinable())
+        analysisThread_.join();
+
+    const auto file = referenceFile_;
+    const auto sampleRate = capture.sampleRate;
+    const auto captureGeneration = capture.generation;
+    analysisState_.store(SectionAnalysisState::running, std::memory_order_release);
+    {
+        const juce::ScopedLock lock(comparisonLock_);
+        latestComparison_.reset();
+    }
+
+    analysisThread_ = std::jthread(
+        [this, file, referenceStartSeconds, sampleRate, captureGeneration,
+            target = refEqTarget, id = std::move(sectionId),
+            left = std::move(mixLeft), right = std::move(mixRight)](const std::stop_token stopToken) mutable {
+            const auto finish = [this](const SectionAnalysisState state) {
+                analysisState_.store(state, std::memory_order_release);
+                analysisRunning_.store(false, std::memory_order_release);
+            };
+
+            if (stopToken.stop_requested()) {
+                finish(SectionAnalysisState::idle);
+                return;
+            }
+
+            const auto reference = readReferenceSection(file, referenceStartSeconds, sampleRate, left.size());
+            if (!reference.valid || stopToken.stop_requested()) {
+                finish(stopToken.stop_requested() ? SectionAnalysisState::idle : SectionAnalysisState::error);
+                return;
+            }
+
+            auto mixAnalysis = ehvota::analysis::analyzeCapturedSection(
+                id + ":mix", left, right, sampleRate);
+            auto referenceAnalysis = ehvota::analysis::analyzeCapturedSection(
+                id + ":reference", reference.left, reference.right, sampleRate);
+            auto comparison = ehvota::analysis::compareCapturedSections(mixAnalysis, referenceAnalysis);
+            {
+                const juce::ScopedLock lock(comparisonLock_);
+                latestComparison_ = comparison;
+            }
+            if (!comparison.valid || stopToken.stop_requested()) {
+                finish(stopToken.stop_requested() ? SectionAnalysisState::idle : SectionAnalysisState::error);
+                return;
+            }
+
+            const auto evidence = id + ":capture:" + std::to_string(captureGeneration);
+            const auto staged = stageRefEqProposal(comparison, target, evidence);
+            finish(staged ? SectionAnalysisState::proposalReady : SectionAnalysisState::noProposal);
+        });
+    return true;
+}
+
+std::optional<ehvota::analysis::SectionComparison> RefHubAudioProcessor::copyLatestComparison() const
+{
+    const juce::ScopedLock lock(comparisonLock_);
+    return latestComparison_;
 }
 
 void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
@@ -266,12 +394,10 @@ void RefHubAudioProcessor::reconcileStagedProposal(
     const juce::ScopedLock lock(proposalLock_);
     if (!stagedProposal_ || stagedProposal_->state != ehvota::safety::ProposalState::approved)
         return;
-
     auto expectedMailbox = ehvota::safety::encodeApprovedSharedProposal(
         *stagedProposal_, stagedTarget_, ehvota::communication::SharedPluginKind::refEQ);
     if (!expectedMailbox)
         return;
-
     for (std::size_t i = 0; i < count; ++i) {
         const auto& snapshot = snapshots[i];
         if (snapshot.id.slot != stagedTarget_.slot || snapshot.id.generation != stagedTarget_.generation)
