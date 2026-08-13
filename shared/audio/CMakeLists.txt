@@ -1,6 +1,8 @@
 add_library(EhvotaAudio STATIC
     CaptureBuffer.cpp
     CaptureBuffer.h
+    Biquad.cpp
+    Biquad.h
 )
 
 target_include_directories(EhvotaAudio
