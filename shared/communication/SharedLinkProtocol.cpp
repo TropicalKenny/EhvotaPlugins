@@ -1,5 +1,6 @@
 #include "SharedLinkProtocol.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace ehvota::communication {
