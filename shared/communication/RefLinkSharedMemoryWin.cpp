@@ -8,15 +8,18 @@
 
 namespace ehvota::communication {
 namespace {
-constexpr wchar_t mappingName[] = L"Local\\EhvotaRefLink_v5";
-constexpr wchar_t mutexName[] = L"Local\\EhvotaRefLinkMutex_v5";
+constexpr wchar_t mappingName[] = L"Local\\EhvotaRefLink_v6";
+constexpr wchar_t mutexName[] = L"Local\\EhvotaRefLinkMutex_v6";
 constexpr std::uint64_t staleAfterMs = 10000;
 HANDLE asHandle(void* value) noexcept { return static_cast<HANDLE>(value); }
-void copyName(std::array<char, sharedLinkNameCapacity>& destination, std::string_view source) noexcept
+
+template <std::size_t Capacity>
+void copyFixedText(std::array<char, Capacity>& destination, std::string_view source) noexcept
 {
     destination.fill('\0');
     std::copy_n(source.begin(), std::min(source.size(), destination.size() - 1), destination.begin());
 }
+
 bool captureTransitionAllowed(const SharedCaptureState from, const SharedCaptureState to) noexcept
 {
     if (from == to) return true;
@@ -97,7 +100,7 @@ SharedInstanceId RefLinkSharedMemoryWin::registerInstance(
         record.generation = generation ? generation : 1;
         record.pluginKind = kind;
         record.role = role;
-        copyName(record.name, name);
+        copyFixedText(record.name, name);
         record.metrics.peakDb = -100.0f;
         record.metrics.rmsDb = -100.0f;
         record.metrics.correlation = 1.0f;
@@ -134,7 +137,23 @@ bool RefLinkSharedMemoryWin::updateInstanceName(
     auto& record = region_->instances[id.slot];
     const bool ok = recordMatches(record, id);
     if (ok) {
-        copyName(record.name, name);
+        copyFixedText(record.name, name);
+        ++region_->revision;
+    }
+    unlock();
+    return ok;
+}
+
+bool RefLinkSharedMemoryWin::updatePersistentId(
+    const SharedInstanceId id, const std::string_view persistentId) noexcept
+{
+    if (!validateSharedPersistentId(persistentId)
+        || !ready() || !region_ || !id.valid() || id.slot >= region_->instances.size() || !lock(10))
+        return false;
+    auto& record = region_->instances[id.slot];
+    const bool ok = recordMatches(record, id);
+    if (ok) {
+        copyFixedText(record.persistentId, persistentId);
         ++region_->revision;
     }
     unlock();
@@ -176,6 +195,7 @@ std::size_t RefLinkSharedMemoryWin::readActive(
         snapshot.pluginKind = record.pluginKind;
         snapshot.role = record.role;
         snapshot.name = record.name;
+        snapshot.persistentId = record.persistentId;
         snapshot.metrics = record.metrics;
         snapshot.parameters = record.parameters;
         snapshot.heartbeatAgeMs = now >= record.heartbeatTickMs ? now - record.heartbeatTickMs : 0;

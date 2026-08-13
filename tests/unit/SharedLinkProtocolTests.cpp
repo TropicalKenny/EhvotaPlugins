@@ -2,10 +2,17 @@
 
 #include <cassert>
 #include <limits>
+#include <string>
 
 int main()
 {
     using namespace ehvota::communication;
+
+    assert(sharedLinkVersion == 6U);
+    assert(validateSharedPersistentId("44b6f42c-38aa-4a3a-b5f0-1f4d6d270001"));
+    assert(!validateSharedPersistentId(""));
+    assert(!validateSharedPersistentId(std::string(sharedLinkPersistentIdCapacity, 'x')));
+    assert(!validateSharedPersistentId("bad id with spaces"));
 
     assert(sharedParameterAllowed(SharedPluginKind::refEQ, SharedParameterKey::eqBand3Gain));
     assert(!sharedParameterAllowed(SharedPluginKind::refTap, SharedParameterKey::eqBand3Gain));

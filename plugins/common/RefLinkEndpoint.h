@@ -36,6 +36,8 @@ public:
         if (id_.valid()) return true;
         if (!transport_.ready()) return false;
         id_ = transport_.registerInstance(pluginKind_, role_, name_);
+        if (id_.valid() && !persistentId_.empty())
+            (void) transport_.updatePersistentId(id_, persistentId_);
         return id_.valid();
     }
 
@@ -44,6 +46,15 @@ public:
         name_.assign(name.begin(), name.end());
         if (!ensureRegistered()) return false;
         return transport_.updateInstanceName(id_, name_);
+    }
+
+    bool updatePersistentId(const std::string_view persistentId) noexcept
+    {
+        if (!ehvota::communication::validateSharedPersistentId(persistentId))
+            return false;
+        persistentId_.assign(persistentId.begin(), persistentId.end());
+        if (!ensureRegistered()) return false;
+        return transport_.updatePersistentId(id_, persistentId_);
     }
 
     bool publish(
@@ -112,12 +123,14 @@ public:
 
     [[nodiscard]] ehvota::communication::SharedInstanceId id() const noexcept { return id_; }
     [[nodiscard]] ehvota::communication::SharedLinkOpenStatus status() const noexcept { return transport_.status(); }
+    [[nodiscard]] const std::string& persistentId() const noexcept { return persistentId_; }
 
 private:
     ehvota::communication::RefLinkSharedMemoryWin transport_;
     ehvota::communication::SharedPluginKind pluginKind_ { ehvota::communication::SharedPluginKind::unknown };
     ehvota::communication::RefLinkRole role_ { ehvota::communication::RefLinkRole::unknown };
     std::string name_;
+    std::string persistentId_;
     ehvota::communication::SharedInstanceId id_;
 };
 

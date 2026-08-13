@@ -11,12 +11,13 @@
 namespace ehvota::communication {
 
 constexpr std::uint32_t sharedLinkMagic = 0x4556484cU; // EVHL
-constexpr std::uint32_t sharedLinkVersion = 5U;
+constexpr std::uint32_t sharedLinkVersion = 6U;
 constexpr std::size_t sharedLinkMaxInstances = 64;
 constexpr std::size_t sharedLinkMaxOperations = 8;
 constexpr std::size_t sharedLinkMaxParameterValues = 32;
 constexpr std::size_t sharedLinkAnalysisBandCount = 6;
 constexpr std::size_t sharedLinkNameCapacity = 48;
+constexpr std::size_t sharedLinkPersistentIdCapacity = 48;
 constexpr std::uint32_t sharedCaptureMaximumSamples = 60U * 768000U;
 
 enum class SharedPluginKind : std::uint16_t {
@@ -94,20 +95,16 @@ struct SharedProposalMailbox {
     std::array<SharedParameterOperation, sharedLinkMaxOperations> operations {};
 };
 
-// A capture request contains scheduling metadata only. Raw audio never crosses RefLink.
 struct SharedCaptureRequest {
     std::uint64_t sequence {};
     std::uint64_t captureId {};
     std::uint32_t targetGeneration {};
     SharedCaptureState state { SharedCaptureState::empty };
-    // -1 means "next available audio block". Non-negative values are Ableton/host sample positions.
     std::int64_t startHostSample { -1 };
     std::uint32_t durationSamples {};
     std::uint32_t resultCode {};
 };
 
-// Compact, immutable analysis evidence published by RefTap after a local capture.
-// bandPowerDb order matches Ehvota's LOW, LOW-MID, MID, HIGH-MID, HIGH, AIR definitions.
 struct SharedCapturedAnalysis {
     std::uint64_t revision {};
     std::uint64_t captureId {};
@@ -132,6 +129,8 @@ struct SharedInstanceRecord {
     SharedPluginKind pluginKind { SharedPluginKind::unknown };
     RefLinkRole role { RefLinkRole::unknown };
     std::array<char, sharedLinkNameCapacity> name {};
+    // Optional durable Ehvota-owned identity. RefTap persists this inside its VST3 state.
+    std::array<char, sharedLinkPersistentIdCapacity> persistentId {};
     RefLinkMetrics metrics {};
     SharedParameterSnapshot parameters {};
     std::uint64_t heartbeatTickMs {};
@@ -160,6 +159,7 @@ struct ParameterBounds { float minimum {}; float maximum {}; bool integerOnly {}
 [[nodiscard]] bool validateSharedProposal(SharedPluginKind, const SharedProposalMailbox&) noexcept;
 [[nodiscard]] bool validateSharedCaptureRequest(const SharedCaptureRequest&) noexcept;
 [[nodiscard]] bool validateSharedCapturedAnalysis(const SharedCapturedAnalysis&) noexcept;
+[[nodiscard]] bool validateSharedPersistentId(std::string_view) noexcept;
 [[nodiscard]] bool sharedCaptureStateInFlight(SharedCaptureState) noexcept;
 [[nodiscard]] std::string_view sharedPluginKindName(SharedPluginKind) noexcept;
 

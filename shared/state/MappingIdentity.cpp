@@ -1,18 +1,16 @@
 #include "MappingIdentity.h"
 
-#include <algorithm>
-
 namespace ehvota::state {
 namespace {
 
-std::vector<MappingIdentityCandidate> matchingBridgeId(
-    const std::string& bridgeId,
+std::vector<MappingIdentityCandidate> matchingPersistentId(
+    const std::string& persistentId,
     const std::vector<MappingIdentityCandidate>& candidates)
 {
     std::vector<MappingIdentityCandidate> matches;
-    if (bridgeId.empty()) return matches;
+    if (persistentId.empty()) return matches;
     for (const auto& candidate : candidates)
-        if (candidate.bridgeTrackId == bridgeId)
+        if (candidate.persistentRefTapId == persistentId)
             matches.push_back(candidate);
     return matches;
 }
@@ -37,59 +35,55 @@ MappingRecovery resolveSavedComponentBinding(
 {
     MappingRecovery result;
 
-    if (!saved.bridgeTrackId.empty()) {
-        auto bridgeMatches = matchingBridgeId(saved.bridgeTrackId, candidates);
-        if (bridgeMatches.size() > 1) {
-            result.state = MappingRecoveryState::ambiguousBridgeIdentity;
-            result.alternatives = std::move(bridgeMatches);
-            result.explanation = "More than one runtime endpoint claims the saved Ableton bridge track identity; manual relink is required.";
+    if (!saved.persistentRefTapId.empty()) {
+        auto exactMatches = matchingPersistentId(saved.persistentRefTapId, candidates);
+        if (exactMatches.size() > 1) {
+            result.state = MappingRecoveryState::ambiguousPersistentEndpoint;
+            result.alternatives = std::move(exactMatches);
+            result.explanation = "More than one live RefTap claims the same persistent Ehvota identity; manual repair is required.";
             return result;
         }
-        if (bridgeMatches.size() == 1) {
-            result.candidate = bridgeMatches.front();
+        if (exactMatches.size() == 1) {
+            result.candidate = exactMatches.front();
             if (!result.candidate->endpointFresh) {
                 result.state = MappingRecoveryState::endpointUnavailable;
-                result.explanation = "The saved Ableton track identity exists, but its mapped Ehvota endpoint is not currently fresh.";
+                result.explanation = "The saved RefTap identity exists, but its current endpoint is stale or unavailable.";
                 return result;
             }
-            result.state = MappingRecoveryState::exactBridgeIdentity;
+            result.state = MappingRecoveryState::exactPersistentEndpoint;
             result.mayAutoRestore = true;
-            result.explanation = "Recovered from the saved Ableton bridge track identity.";
+            result.explanation = "Recovered from the persistent RefTap identity saved in the Ableton Set.";
             return result;
         }
 
-        // A name match after an identity miss is only a hint. A renamed/recreated track must
-        // never inherit processing merely because its visible name happens to match.
         auto nameHints = matchingNameHint(saved.lastKnownTrackName, candidates);
         if (nameHints.size() == 1) {
             result.state = MappingRecoveryState::relinkSuggestedByName;
             result.candidate = nameHints.front();
-            result.explanation = "The saved bridge identity is missing. One track name matches as a relink hint, but automatic restore is forbidden.";
+            result.explanation = "The saved RefTap identity is missing. One track name matches as a relink hint, but automatic restore is forbidden.";
         } else if (nameHints.size() > 1) {
             result.state = MappingRecoveryState::ambiguousNameHint;
             result.alternatives = std::move(nameHints);
-            result.explanation = "The saved bridge identity is missing and multiple tracks share the previous name; manual relink is required.";
+            result.explanation = "The saved RefTap identity is missing and multiple tracks share the old name; manual relink is required.";
         } else {
             result.state = MappingRecoveryState::unresolved;
-            result.explanation = "The saved Ableton track identity is no longer present.";
+            result.explanation = "The saved RefTap identity is not currently present.";
         }
         return result;
     }
 
-    // Legacy/manual bindings that predate bridge identity can surface a useful suggestion,
-    // but visible names are never sufficient proof for an automatic mapping.
     auto nameHints = matchingNameHint(saved.lastKnownTrackName, candidates);
     if (nameHints.size() == 1) {
         result.state = MappingRecoveryState::relinkSuggestedByName;
         result.candidate = nameHints.front();
-        result.explanation = "One track name matches this legacy binding. Confirm it manually to establish a durable bridge identity.";
+        result.explanation = "One track name matches this legacy binding. Confirm it manually to establish a persistent RefTap identity.";
     } else if (nameHints.size() > 1) {
         result.state = MappingRecoveryState::ambiguousNameHint;
         result.alternatives = std::move(nameHints);
         result.explanation = "Multiple tracks match the legacy name hint; no automatic choice is safe.";
     } else {
         result.state = MappingRecoveryState::unresolved;
-        result.explanation = "No current track matches this saved mapping.";
+        result.explanation = "No current RefTap matches this saved mapping.";
     }
     return result;
 }
@@ -98,9 +92,9 @@ std::string_view mappingRecoveryStateName(const MappingRecoveryState state) noex
 {
     switch (state) {
     case MappingRecoveryState::unresolved: return "Unresolved";
-    case MappingRecoveryState::exactBridgeIdentity: return "Exact bridge identity";
+    case MappingRecoveryState::exactPersistentEndpoint: return "Exact persistent endpoint";
     case MappingRecoveryState::relinkSuggestedByName: return "Relink suggested";
-    case MappingRecoveryState::ambiguousBridgeIdentity: return "Ambiguous bridge identity";
+    case MappingRecoveryState::ambiguousPersistentEndpoint: return "Duplicate persistent endpoint";
     case MappingRecoveryState::ambiguousNameHint: return "Ambiguous name hint";
     case MappingRecoveryState::endpointUnavailable: return "Endpoint unavailable";
     }

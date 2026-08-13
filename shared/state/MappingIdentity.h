@@ -4,31 +4,33 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace ehvota::state {
 
-// Durable mapping identity is deliberately separate from RefLink slot/generation, which is
-// only a runtime process-local endpoint address. bridgeTrackId comes from Ehvota Bridge.
+// Saved mappings trust an Ehvota-owned persistent RefTap UUID, not LiveAPI.id. The Max
+// JavaScript LiveAPI id is runtime-dynamic and is retained only as optional diagnostic context.
 struct SavedComponentBinding {
     ReferenceRole role { ReferenceRole::other };
-    std::string bridgeTrackId;
+    std::string persistentRefTapId;
     std::string lastKnownTrackName;
     std::string lastKnownEndpointName;
+    std::string lastKnownLiveRuntimeId;
 };
 
 struct MappingIdentityCandidate {
-    std::string bridgeTrackId;
+    std::string persistentRefTapId;
     std::string trackName;
-    std::string endpointToken; // opaque RefHub runtime token; not persisted as identity
+    std::string endpointToken; // opaque current RefLink slot:generation token
     bool endpointFresh {};
 };
 
 enum class MappingRecoveryState {
     unresolved,
-    exactBridgeIdentity,
+    exactPersistentEndpoint,
     relinkSuggestedByName,
-    ambiguousBridgeIdentity,
+    ambiguousPersistentEndpoint,
     ambiguousNameHint,
     endpointUnavailable
 };

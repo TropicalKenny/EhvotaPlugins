@@ -18,6 +18,8 @@ RefTapAudioProcessor::RefTapAudioProcessor()
           .withInput("Input", juce::AudioChannelSet::stereo(), true)
           .withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
+    persistentInstanceId_ = juce::Uuid().toString();
+    publishPersistentIdentity();
     startTimerHz(20);
 }
 
@@ -25,6 +27,13 @@ RefTapAudioProcessor::~RefTapAudioProcessor()
 {
     stopTimer();
     stopCaptureAnalysis();
+}
+
+void RefTapAudioProcessor::publishPersistentIdentity()
+{
+    if (persistentInstanceId_.isEmpty())
+        persistentInstanceId_ = juce::Uuid().toString();
+    (void) refLink_.updatePersistentId(persistentInstanceId_.toStdString());
 }
 
 void RefTapAudioProcessor::prepareToPlay(const double sampleRate, const int)
@@ -36,6 +45,7 @@ void RefTapAudioProcessor::prepareToPlay(const double sampleRate, const int)
     activeCaptureSequence_.store(0, std::memory_order_relaxed);
     activeCaptureId_.store(0, std::memory_order_relaxed);
     capture_.prepare(sampleRate, 60.0);
+    publishPersistentIdentity();
 }
 
 void RefTapAudioProcessor::releaseResources()
@@ -340,11 +350,22 @@ juce::AudioProcessorEditor* RefTapAudioProcessor::createEditor()
 void RefTapAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
 {
     juce::MemoryOutputStream stream(destination, true);
-    stream.writeInt(3);
+    stream.writeInt(4);
+    stream.writeString(persistentInstanceId_);
 }
 
-void RefTapAudioProcessor::setStateInformation(const void*, const int)
+void RefTapAudioProcessor::setStateInformation(const void* data, const int bytes)
 {
+    if (data == nullptr || bytes <= 0)
+        return;
+    juce::MemoryInputStream stream(data, static_cast<std::size_t>(bytes), false);
+    const auto version = stream.readInt();
+    if (version >= 4) {
+        const auto restored = stream.readString();
+        if (ehvota::communication::validateSharedPersistentId(restored.toStdString()))
+            persistentInstanceId_ = restored;
+    }
+    publishPersistentIdentity();
 }
 
 } // namespace ehvota::reftap

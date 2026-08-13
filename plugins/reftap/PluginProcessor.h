@@ -45,6 +45,7 @@ public:
     float peakDb() const noexcept { return peakDb_.load(std::memory_order_relaxed); }
     float rmsDb() const noexcept { return rmsDb_.load(std::memory_order_relaxed); }
     float correlation() const noexcept { return correlation_.load(std::memory_order_relaxed); }
+    juce::String persistentInstanceId() const { return persistentInstanceId_; }
 
 private:
     struct CaptureAnalysisResult {
@@ -58,6 +59,7 @@ private:
     void handleCaptureProgress();
     void launchCaptureAnalysis();
     void stopCaptureAnalysis() noexcept;
+    void publishPersistentIdentity();
 
     std::atomic<float> peakDb_ { -100.0f };
     std::atomic<float> rmsDb_ { -100.0f };
@@ -76,6 +78,7 @@ private:
     mutable juce::CriticalSection captureAnalysisLock_;
     std::optional<CaptureAnalysisResult> pendingCaptureAnalysis_;
 
+    juce::String persistentInstanceId_;
     ehvota::plugins::RefLinkEndpoint refLink_ {
         ehvota::communication::SharedPluginKind::refTap,
         ehvota::communication::RefLinkRole::bus,

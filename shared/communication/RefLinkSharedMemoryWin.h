@@ -21,6 +21,7 @@ struct SharedInstanceSnapshot {
     SharedPluginKind pluginKind { SharedPluginKind::unknown };
     RefLinkRole role { RefLinkRole::unknown };
     std::array<char, sharedLinkNameCapacity> name {};
+    std::array<char, sharedLinkPersistentIdCapacity> persistentId {};
     RefLinkMetrics metrics {};
     SharedParameterSnapshot parameters {};
     std::uint64_t heartbeatAgeMs {};
@@ -41,6 +42,7 @@ public:
     [[nodiscard]] SharedInstanceId registerInstance(SharedPluginKind, RefLinkRole, std::string_view) noexcept;
     void unregisterInstance(SharedInstanceId) noexcept;
     [[nodiscard]] bool updateInstanceName(SharedInstanceId, std::string_view) noexcept;
+    [[nodiscard]] bool updatePersistentId(SharedInstanceId, std::string_view) noexcept;
     bool publish(SharedInstanceId, const RefLinkMetrics&, const SharedParameterSnapshot* parameters = nullptr) noexcept;
     [[nodiscard]] std::size_t readActive(std::array<SharedInstanceSnapshot, sharedLinkMaxInstances>&) noexcept;
 

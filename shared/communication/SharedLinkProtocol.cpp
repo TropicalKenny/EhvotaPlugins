@@ -161,6 +161,18 @@ bool validateSharedCapturedAnalysis(const SharedCapturedAnalysis& analysis) noex
     return true;
 }
 
+bool validateSharedPersistentId(const std::string_view id) noexcept
+{
+    if (id.empty() || id.size() >= sharedLinkPersistentIdCapacity)
+        return false;
+    for (const unsigned char ch : id) {
+        // Keep the shared-memory identity printable, single-line and encoding-independent.
+        if (ch < 0x21 || ch > 0x7e)
+            return false;
+    }
+    return true;
+}
+
 bool sharedCaptureStateInFlight(const SharedCaptureState state) noexcept
 {
     return state == SharedCaptureState::pending
