@@ -2,6 +2,7 @@
 
 #include "shared/state/ReferenceFolderRules.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <sstream>
 
@@ -83,8 +84,28 @@ ReferenceFolderLoadResult loadReferenceFolder(const juce::File& directory)
             result.validation.valid = false;
         result.validation.issues.push_back(std::move(issue));
     }
-
     return result;
+}
+
+std::optional<juce::File> referenceFileForRole(
+    const ReferenceFolderLoadResult& result,
+    const ehvota::state::ReferenceRole role)
+{
+    const auto count = std::min(result.package.sources.size(), result.files.size());
+    for (std::size_t i = 0; i < count; ++i)
+        if (result.package.sources[i].role == role && result.files[i].existsAsFile())
+            return result.files[i];
+    return std::nullopt;
+}
+
+std::optional<ehvota::state::ReferenceSource> referenceSourceForRole(
+    const ReferenceFolderLoadResult& result,
+    const ehvota::state::ReferenceRole role)
+{
+    for (const auto& source : result.package.sources)
+        if (source.role == role)
+            return source;
+    return std::nullopt;
 }
 
 } // namespace ehvota::refhub

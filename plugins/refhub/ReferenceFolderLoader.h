@@ -4,6 +4,7 @@
 
 #include <juce_audio_formats/juce_audio_formats.h>
 
+#include <optional>
 #include <vector>
 
 namespace ehvota::refhub {
@@ -16,5 +17,11 @@ struct ReferenceFolderLoadResult {
 };
 
 [[nodiscard]] ReferenceFolderLoadResult loadReferenceFolder(const juce::File& directory);
+[[nodiscard]] std::optional<juce::File> referenceFileForRole(
+    const ReferenceFolderLoadResult& result,
+    ehvota::state::ReferenceRole role);
+[[nodiscard]] std::optional<ehvota::state::ReferenceSource> referenceSourceForRole(
+    const ReferenceFolderLoadResult& result,
+    ehvota::state::ReferenceRole role);
 
 } // namespace ehvota::refhub

@@ -57,6 +57,8 @@ target_sources(EhvotaRefHub PRIVATE
     refhub/ReferenceFolderLoader.h
     refhub/ReferenceSectionReader.cpp
     refhub/ReferenceSectionReader.h
+    refhub/ComponentCaptureCoordinator.cpp
+    refhub/ComponentCaptureCoordinator.h
 )
 
 ehvota_add_plugin(EhvotaRefTap "Ehvota RefTap" RfTp "${CMAKE_CURRENT_SOURCE_DIR}/reftap")
