@@ -5,10 +5,12 @@ add_library(EhvotaSafety STATIC
     AuditionPolicy.h
     LinkProposalAdapter.cpp
     LinkProposalAdapter.h
+    ReferenceProposalGenerator.cpp
+    ReferenceProposalGenerator.h
 )
 
 target_include_directories(EhvotaSafety PUBLIC "${PROJECT_SOURCE_DIR}")
-target_link_libraries(EhvotaSafety PUBLIC EhvotaCommunication)
+target_link_libraries(EhvotaSafety PUBLIC EhvotaCommunication EhvotaAnalysis)
 target_compile_features(EhvotaSafety PUBLIC cxx_std_20)
 if(MSVC)
     target_compile_options(EhvotaSafety PRIVATE /W4 /permissive-)
