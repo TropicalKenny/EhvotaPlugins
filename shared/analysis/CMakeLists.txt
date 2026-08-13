@@ -3,6 +3,8 @@ add_library(EhvotaAnalysis STATIC
     BasicMetrics.h
     SpectrumAnalysis.cpp
     SpectrumAnalysis.h
+    Loudness1770.cpp
+    Loudness1770.h
 )
 
 target_include_directories(EhvotaAnalysis
