@@ -1,6 +1,8 @@
 add_library(EhvotaState STATIC
     ReferenceModel.cpp
     ReferenceModel.h
+    ReferenceFolderRules.cpp
+    ReferenceFolderRules.h
     CapturedComparison.cpp
     CapturedComparison.h
 )
