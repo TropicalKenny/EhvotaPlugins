@@ -2,6 +2,7 @@
 #include "PluginEditor.h"
 
 #include <cmath>
+#include <span>
 
 namespace ehvota::refhub {
 
@@ -16,10 +17,14 @@ RefHubAudioProcessor::RefHubAudioProcessor()
 void RefHubAudioProcessor::prepareToPlay(const double sampleRate, const int samplesPerBlock)
 {
     referenceTransport_.prepareToPlay(samplesPerBlock, sampleRate);
+    // Section capture is intentionally bounded. Whole-track analysis uses the offline/reference
+    // analysis path rather than reserving an entire song in realtime plugin memory.
+    mixCapture_.prepare(sampleRate, 60.0);
 }
 
 void RefHubAudioProcessor::releaseResources()
 {
+    mixCapture_.cancel();
     referenceTransport_.releaseResources();
 }
 
@@ -88,7 +93,7 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     double sumSquares = 0.0;
     std::uint64_t count = 0;
 
-    // Measure the project signal before any monitoring-only reference substitution.
+    // Measure and capture the project signal before any monitoring-only reference substitution.
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
         const auto* data = buffer.getReadPointer(channel);
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
@@ -97,6 +102,15 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             sumSquares += static_cast<double>(value) * static_cast<double>(value);
             ++count;
         }
+    }
+
+    if (buffer.getNumChannels() > 0 && buffer.getNumSamples() > 0) {
+        const auto left = std::span<const float>(
+            buffer.getReadPointer(0), static_cast<std::size_t>(buffer.getNumSamples()));
+        const auto right = buffer.getNumChannels() > 1
+            ? std::span<const float>(buffer.getReadPointer(1), static_cast<std::size_t>(buffer.getNumSamples()))
+            : left;
+        mixCapture_.push(left, right);
     }
 
     const auto rms = count > 0
