@@ -5,6 +5,8 @@ add_library(EhvotaAudio STATIC
     Biquad.h
     AnalogSaturation.cpp
     AnalogSaturation.h
+    TransientShaper.cpp
+    TransientShaper.h
 )
 
 target_include_directories(EhvotaAudio
