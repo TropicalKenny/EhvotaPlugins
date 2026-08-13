@@ -5,6 +5,8 @@ add_library(EhvotaState STATIC
     ReferenceFolderRules.h
     SectionModel.cpp
     SectionModel.h
+    PairedSectionModel.cpp
+    PairedSectionModel.h
     AnalysisScope.cpp
     AnalysisScope.h
     MappingValidation.cpp

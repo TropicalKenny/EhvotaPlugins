@@ -58,6 +58,12 @@ target_sources(EhvotaRefHub PRIVATE
     refhub/ReferenceFolderLoader.h
     refhub/ReferenceSectionReader.cpp
     refhub/ReferenceSectionReader.h
+    refhub/ReferenceWholeTrackLoudness.cpp
+    refhub/ReferenceWholeTrackLoudness.h
+    refhub/WholeTrackLevelMatchCoordinator.cpp
+    refhub/WholeTrackLevelMatchCoordinator.h
+    refhub/PairedSectionStore.cpp
+    refhub/PairedSectionStore.h
     refhub/ComponentCaptureCoordinator.cpp
     refhub/ComponentCaptureCoordinator.h
 )

@@ -5,6 +5,8 @@ add_library(EhvotaAnalysis STATIC
     SpectrumAnalysis.h
     Loudness1770.cpp
     Loudness1770.h
+    StreamingLoudness1770.cpp
+    StreamingLoudness1770.h
     LevelMatch.cpp
     LevelMatch.h
     CapturedSectionAnalysis.cpp
