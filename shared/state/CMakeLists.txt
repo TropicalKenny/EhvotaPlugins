@@ -1,6 +1,8 @@
 add_library(EhvotaState STATIC
     ReferenceModel.cpp
     ReferenceModel.h
+    CapturedComparison.cpp
+    CapturedComparison.h
 )
 
 target_include_directories(EhvotaState
@@ -8,6 +10,7 @@ target_include_directories(EhvotaState
         "${PROJECT_SOURCE_DIR}"
 )
 
+target_link_libraries(EhvotaState PUBLIC EhvotaAnalysis)
 target_compile_features(EhvotaState PUBLIC cxx_std_20)
 
 if(MSVC)
