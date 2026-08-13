@@ -22,9 +22,7 @@ std::string stableId(std::string_view text)
 
 } // namespace
 
-ReferenceFolderLoadResult loadReferenceFolder(
-    const juce::File& directory,
-    juce::AudioFormatManager& formatManager)
+ReferenceFolderLoadResult loadReferenceFolder(const juce::File& directory)
 {
     ReferenceFolderLoadResult result;
     result.package.name = directory.getFileName().toStdString();
@@ -36,6 +34,9 @@ ReferenceFolderLoadResult loadReferenceFolder(
         result.validation.issues.push_back({ true, "Selected reference path is not a directory." });
         return result;
     }
+
+    juce::AudioFormatManager formatManager;
+    formatManager.registerBasicFormats();
 
     const auto children = directory.findChildFiles(juce::File::findFiles, false);
     for (const auto& file : children) {
