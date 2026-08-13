@@ -62,3 +62,4 @@ ehvota_add_plugin(EhvotaRefEQ "Ehvota RefEQ" RfEq "${CMAKE_CURRENT_SOURCE_DIR}/r
 ehvota_add_plugin(EhvotaRefComp "Ehvota RefComp" RfCp "${CMAKE_CURRENT_SOURCE_DIR}/refcomp")
 ehvota_add_plugin(EhvotaRefTime "Ehvota RefTime" RfTm "${CMAKE_CURRENT_SOURCE_DIR}/reftime")
 ehvota_add_plugin(EhvotaRefColor "Ehvota RefColor" RfCl "${CMAKE_CURRENT_SOURCE_DIR}/refcolor")
+ehvota_add_plugin(EhvotaRefTransient "Ehvota RefTransient" RfTr "${CMAKE_CURRENT_SOURCE_DIR}/reftransient")
