@@ -11,7 +11,7 @@
 namespace ehvota::communication {
 
 constexpr std::uint32_t sharedLinkMagic = 0x4556484cU; // EVHL
-constexpr std::uint32_t sharedLinkVersion = 1U;
+constexpr std::uint32_t sharedLinkVersion = 2U;
 constexpr std::size_t sharedLinkMaxInstances = 64;
 constexpr std::size_t sharedLinkMaxOperations = 8;
 constexpr std::size_t sharedLinkNameCapacity = 48;
@@ -27,83 +27,36 @@ enum class SharedPluginKind : std::uint16_t {
     refTransient
 };
 
-enum class SharedSlotState : std::uint32_t {
-    free,
-    active
-};
+enum class SharedSlotState : std::uint32_t { free, active };
 
 enum class SharedParameterKey : std::uint16_t {
     none,
-
-    eqHighPassEnabled,
-    eqHighPassFrequency,
-    eqLowPassEnabled,
-    eqLowPassFrequency,
-    eqBand1Frequency,
-    eqBand1Gain,
-    eqBand1Q,
-    eqBand2Frequency,
-    eqBand2Gain,
-    eqBand2Q,
-    eqBand3Frequency,
-    eqBand3Gain,
-    eqBand3Q,
-    eqBand4Frequency,
-    eqBand4Gain,
-    eqBand4Q,
-    eqBand5Frequency,
-    eqBand5Gain,
-    eqBand5Q,
-    eqBand6Frequency,
-    eqBand6Gain,
-    eqBand6Q,
-    eqOutput,
-
-    compMode,
-    compThreshold,
-    compRatio,
-    compAttack,
-    compAttackSync,
-    compAttackNote,
-    compAttackModifier,
-    compRelease,
-    compReleaseSync,
-    compReleaseNote,
-    compReleaseModifier,
-    compKnee,
-    compMakeup,
-    compMix,
-
-    colorMode,
-    colorAmount,
-    colorDrive,
-    colorAsymmetry,
-    colorOutput,
-
-    transientAttack,
-    transientSustain,
-    transientSensitivity,
-    transientOutput
+    eqHighPassEnabled, eqHighPassFrequency, eqLowPassEnabled, eqLowPassFrequency,
+    eqBand1Frequency, eqBand1Gain, eqBand1Q,
+    eqBand2Frequency, eqBand2Gain, eqBand2Q,
+    eqBand3Frequency, eqBand3Gain, eqBand3Q,
+    eqBand4Frequency, eqBand4Gain, eqBand4Q,
+    eqBand5Frequency, eqBand5Gain, eqBand5Q,
+    eqBand6Frequency, eqBand6Gain, eqBand6Q, eqOutput,
+    compMode, compThreshold, compRatio, compAttack, compAttackSync, compAttackNote,
+    compAttackModifier, compRelease, compReleaseSync, compReleaseNote,
+    compReleaseModifier, compKnee, compMakeup, compMix,
+    colorMode, colorAmount, colorDrive, colorAsymmetry, colorOutput,
+    transientAttack, transientSustain, transientSensitivity, transientOutput
 };
 
-enum class SharedProposalState : std::uint32_t {
-    empty,
-    pending,
-    processing,
-    applied,
-    rejected,
-    error
-};
+enum class SharedProposalState : std::uint32_t { empty, pending, processing, applied, rejected, error };
 
 struct SharedInstanceId {
     std::uint16_t slot { 0xffff };
     std::uint32_t generation {};
-
     [[nodiscard]] bool valid() const noexcept { return slot != 0xffff; }
 };
 
 struct SharedParameterOperation {
     SharedParameterKey key { SharedParameterKey::none };
+    float expectedCurrentValue {};
+    float expectedTolerance { 0.001f };
     float value {};
 };
 
@@ -137,22 +90,12 @@ struct SharedLinkRegion {
     std::array<SharedInstanceRecord, sharedLinkMaxInstances> instances {};
 };
 
-struct ParameterBounds {
-    float minimum {};
-    float maximum {};
-    bool integerOnly {};
-};
+struct ParameterBounds { float minimum {}; float maximum {}; bool integerOnly {}; };
 
-[[nodiscard]] std::optional<ParameterBounds> sharedParameterBounds(
-    SharedPluginKind kind,
-    SharedParameterKey key) noexcept;
-[[nodiscard]] bool sharedParameterAllowed(SharedPluginKind kind, SharedParameterKey key) noexcept;
-[[nodiscard]] bool validateSharedOperation(
-    SharedPluginKind kind,
-    const SharedParameterOperation& operation) noexcept;
-[[nodiscard]] bool validateSharedProposal(
-    SharedPluginKind kind,
-    const SharedProposalMailbox& proposal) noexcept;
-[[nodiscard]] std::string_view sharedPluginKindName(SharedPluginKind kind) noexcept;
+[[nodiscard]] std::optional<ParameterBounds> sharedParameterBounds(SharedPluginKind, SharedParameterKey) noexcept;
+[[nodiscard]] bool sharedParameterAllowed(SharedPluginKind, SharedParameterKey) noexcept;
+[[nodiscard]] bool validateSharedOperation(SharedPluginKind, const SharedParameterOperation&) noexcept;
+[[nodiscard]] bool validateSharedProposal(SharedPluginKind, const SharedProposalMailbox&) noexcept;
+[[nodiscard]] std::string_view sharedPluginKindName(SharedPluginKind) noexcept;
 
 } // namespace ehvota::communication

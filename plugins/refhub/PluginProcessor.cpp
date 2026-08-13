@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "shared/safety/LinkProposalAdapter.h"
 
 #include <cmath>
 #include <span>
@@ -15,10 +16,7 @@ RefHubAudioProcessor::RefHubAudioProcessor()
     startTimerHz(10);
 }
 
-RefHubAudioProcessor::~RefHubAudioProcessor()
-{
-    stopTimer();
-}
+RefHubAudioProcessor::~RefHubAudioProcessor() { stopTimer(); }
 
 void RefHubAudioProcessor::prepareToPlay(const double sampleRate, const int samplesPerBlock)
 {
@@ -26,184 +24,38 @@ void RefHubAudioProcessor::prepareToPlay(const double sampleRate, const int samp
     mixCapture_.prepare(sampleRate, 60.0);
     sampleCounter_.store(0, std::memory_order_relaxed);
 }
+void RefHubAudioProcessor::releaseResources(){mixCapture_.cancel();referenceTransport_.releaseResources();}
+bool RefHubAudioProcessor::isBusesLayoutSupported(const BusesLayout& l)const{return l.getMainInputChannelSet()==l.getMainOutputChannelSet()&&(l.getMainInputChannelSet()==juce::AudioChannelSet::mono()||l.getMainInputChannelSet()==juce::AudioChannelSet::stereo());}
 
-void RefHubAudioProcessor::releaseResources()
-{
-    mixCapture_.cancel();
-    referenceTransport_.releaseResources();
-}
-
-bool RefHubAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
-{
-    if (layouts.getMainInputChannelSet() != layouts.getMainOutputChannelSet())
-        return false;
-    return layouts.getMainInputChannelSet() == juce::AudioChannelSet::mono()
-        || layouts.getMainInputChannelSet() == juce::AudioChannelSet::stereo();
-}
-
-bool RefHubAudioProcessor::loadReferenceFile(const juce::File& file)
-{
-    stopReferenceAudition();
-    referenceTransport_.setSource(nullptr);
-    referenceReaderSource_.reset();
-    referenceLoaded_.store(false, std::memory_order_release);
-
-    auto reader = std::unique_ptr<juce::AudioFormatReader>(formatManager_.createReaderFor(file));
-    if (!reader)
-        return false;
-
-    const auto sourceRate = reader->sampleRate;
-    referenceReaderSource_ = std::make_unique<juce::AudioFormatReaderSource>(reader.release(), true);
-    referenceTransport_.setSource(referenceReaderSource_.get(), 0, nullptr, sourceRate, 2);
-    referenceTransport_.setPosition(0.0);
-    referenceLoaded_.store(true, std::memory_order_release);
-    return true;
-}
-
-void RefHubAudioProcessor::unloadReferenceFile()
-{
-    stopReferenceAudition();
-    referenceTransport_.setSource(nullptr);
-    referenceReaderSource_.reset();
-    referenceLoaded_.store(false, std::memory_order_release);
-}
-
-void RefHubAudioProcessor::startReferenceAudition()
-{
-    if (!hasReferenceLoaded())
-        return;
-    if (referenceTransport_.hasStreamFinished())
-        referenceTransport_.setPosition(0.0);
-    referenceTransport_.start();
-    referenceAudition_.store(true, std::memory_order_release);
-}
-
-void RefHubAudioProcessor::stopReferenceAudition()
-{
-    referenceAudition_.store(false, std::memory_order_release);
-    referenceTransport_.stop();
-}
-
-void RefHubAudioProcessor::setReferenceMonitorTrimDb(const float trimDb) noexcept
-{
-    referenceTrimDb_.store(juce::jlimit(-24.0f, 24.0f, trimDb), std::memory_order_relaxed);
-}
+bool RefHubAudioProcessor::loadReferenceFile(const juce::File& file){stopReferenceAudition();referenceTransport_.setSource(nullptr);referenceReaderSource_.reset();referenceLoaded_.store(false);auto reader=std::unique_ptr<juce::AudioFormatReader>(formatManager_.createReaderFor(file));if(!reader)return false;auto rate=reader->sampleRate;referenceReaderSource_=std::make_unique<juce::AudioFormatReaderSource>(reader.release(),true);referenceTransport_.setSource(referenceReaderSource_.get(),0,nullptr,rate,2);referenceTransport_.setPosition(0);referenceLoaded_.store(true);return true;}
+void RefHubAudioProcessor::unloadReferenceFile(){stopReferenceAudition();referenceTransport_.setSource(nullptr);referenceReaderSource_.reset();referenceLoaded_.store(false);}
+void RefHubAudioProcessor::startReferenceAudition(){if(!hasReferenceLoaded())return;if(referenceTransport_.hasStreamFinished())referenceTransport_.setPosition(0);referenceTransport_.start();referenceAudition_.store(true);}
+void RefHubAudioProcessor::stopReferenceAudition(){referenceAudition_.store(false);referenceTransport_.stop();}
+void RefHubAudioProcessor::setReferenceMonitorTrimDb(float db)noexcept{referenceTrimDb_.store(juce::jlimit(-24.f,24.f,db));}
 
 void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
-    juce::ScopedNoDenormals noDenormals;
-
-    float peak = 0.0f;
-    double sumSquares = 0.0;
-    std::uint64_t count = 0;
-
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
-        const auto* data = buffer.getReadPointer(channel);
-        for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
-            const auto value = data[sample];
-            peak = juce::jmax(peak, std::abs(value));
-            sumSquares += static_cast<double>(value) * static_cast<double>(value);
-            ++count;
-        }
-    }
-
-    if (buffer.getNumChannels() > 0 && buffer.getNumSamples() > 0) {
-        const auto left = std::span<const float>(buffer.getReadPointer(0), static_cast<std::size_t>(buffer.getNumSamples()));
-        const auto right = buffer.getNumChannels() > 1
-            ? std::span<const float>(buffer.getReadPointer(1), static_cast<std::size_t>(buffer.getNumSamples()))
-            : left;
-        mixCapture_.push(left, right);
-    }
-
-    const auto rms = count > 0
-        ? static_cast<float>(std::sqrt(sumSquares / static_cast<double>(count)))
-        : 0.0f;
-    livePeakDb_.store(juce::Decibels::gainToDecibels(peak, -100.0f), std::memory_order_relaxed);
-    liveRmsDb_.store(juce::Decibels::gainToDecibels(rms, -100.0f), std::memory_order_relaxed);
-    sampleCounter_.fetch_add(static_cast<std::uint64_t>(buffer.getNumSamples()), std::memory_order_relaxed);
-
-    const bool offlineRenderProtected = renderSafe_.load(std::memory_order_acquire) && isNonRealtime();
-    const bool shouldAuditionReference = referenceAudition_.load(std::memory_order_acquire)
-        && referenceLoaded_.load(std::memory_order_acquire)
-        && !offlineRenderProtected;
-
-    if (shouldAuditionReference) {
-        juce::AudioSourceChannelInfo info(&buffer, 0, buffer.getNumSamples());
-        referenceTransport_.getNextAudioBlock(info);
-        buffer.applyGain(juce::Decibels::decibelsToGain(referenceTrimDb_.load(std::memory_order_relaxed)));
-        if (referenceTransport_.hasStreamFinished())
-            referenceAudition_.store(false, std::memory_order_release);
-    }
+    juce::ScopedNoDenormals nd;float peak=0;double ss=0;std::uint64_t count=0;for(int ch=0;ch<buffer.getNumChannels();++ch){auto*d=buffer.getReadPointer(ch);for(int i=0;i<buffer.getNumSamples();++i){auto x=d[i];peak=juce::jmax(peak,std::abs(x));ss+=(double)x*x;++count;}}
+    if(buffer.getNumChannels()>0&&buffer.getNumSamples()>0){auto left=std::span<const float>(buffer.getReadPointer(0),(std::size_t)buffer.getNumSamples());auto right=buffer.getNumChannels()>1?std::span<const float>(buffer.getReadPointer(1),(std::size_t)buffer.getNumSamples()):left;mixCapture_.push(left,right);}auto rms=count? (float)std::sqrt(ss/(double)count):0;livePeakDb_.store(juce::Decibels::gainToDecibels(peak,-100.f));liveRmsDb_.store(juce::Decibels::gainToDecibels(rms,-100.f));sampleCounter_.fetch_add((std::uint64_t)buffer.getNumSamples());
+    bool protectedRender=renderSafe_.load()&&isNonRealtime();bool audition=referenceAudition_.load()&&referenceLoaded_.load()&&!protectedRender;if(audition){juce::AudioSourceChannelInfo info(&buffer,0,buffer.getNumSamples());referenceTransport_.getNextAudioBlock(info);buffer.applyGain(juce::Decibels::decibelsToGain(referenceTrimDb_.load()));if(referenceTransport_.hasStreamFinished())referenceAudition_.store(false);}
 }
 
 void RefHubAudioProcessor::timerCallback()
 {
-    const auto peak = livePeakDb_.load(std::memory_order_relaxed);
-    const auto rms = liveRmsDb_.load(std::memory_order_relaxed);
-    refLink_.publish({
-        peak,
-        rms,
-        1.0f,
-        peak > -99.0f && rms > -99.0f ? peak - rms : 0.0f,
-        sampleCounter_.load(std::memory_order_relaxed)
-    });
+    auto peak=livePeakDb_.load(),rms=liveRmsDb_.load();refLink_.publish({peak,rms,1.0f,peak>-99&&rms>-99?peak-rms:0,sampleCounter_.load()});
+    std::array<ehvota::communication::SharedInstanceSnapshot,ehvota::communication::sharedLinkMaxInstances> found{};auto n=refLink_.readActive(found);const juce::ScopedLock lock(linkCacheLock_);std::size_t kept=0;for(std::size_t i=0;i<n&&kept<linkedInstances_.size();++i){auto&x=found[i];if(x.pluginKind==ehvota::communication::SharedPluginKind::refHub||x.heartbeatAgeMs>5000)continue;linkedInstances_[kept++]=x;}for(std::size_t i=kept;i<linkedInstances_.size();++i)linkedInstances_[i]={};linkedCount_.store(kept,std::memory_order_release);
+}
 
-    std::array<ehvota::communication::SharedInstanceSnapshot,
-        ehvota::communication::sharedLinkMaxInstances> discovered {};
-    const auto discoveredCount = refLink_.readActive(discovered);
+std::size_t RefHubAudioProcessor::copyLinkedInstances(std::array<ehvota::communication::SharedInstanceSnapshot,ehvota::communication::sharedLinkMaxInstances>&d)const{const juce::ScopedLock lock(linkCacheLock_);auto n=linkedCount_.load();for(std::size_t i=0;i<n;++i)d[i]=linkedInstances_[i];return n;}
 
-    const juce::ScopedLock lock(linkCacheLock_);
-    std::size_t kept = 0;
-    for (std::size_t i = 0; i < discoveredCount && kept < linkedInstances_.size(); ++i) {
-        const auto& item = discovered[i];
-        if (item.pluginKind == ehvota::communication::SharedPluginKind::refHub)
-            continue;
-        if (item.heartbeatAgeMs > 5000)
-            continue;
-        linkedInstances_[kept++] = item;
+bool RefHubAudioProcessor::submitApprovedProposal(const ehvota::safety::Proposal& proposal,const ehvota::communication::SharedInstanceId target)
+{
+    ehvota::communication::SharedPluginKind kind=ehvota::communication::SharedPluginKind::unknown;{
+        const juce::ScopedLock lock(linkCacheLock_);const auto n=linkedCount_.load(std::memory_order_acquire);for(std::size_t i=0;i<n;++i){const auto&s=linkedInstances_[i];if(s.id.slot==target.slot&&s.id.generation==target.generation&&s.heartbeatAgeMs<=5000){kind=s.pluginKind;break;}}
     }
-    for (std::size_t i = kept; i < linkedInstances_.size(); ++i)
-        linkedInstances_[i] = {};
-    linkedCount_.store(kept, std::memory_order_release);
+    if(kind==ehvota::communication::SharedPluginKind::unknown)return false;auto mailbox=ehvota::safety::encodeApprovedSharedProposal(proposal,target,kind);return mailbox.has_value()&&refLink_.submitProposal(target,*mailbox);
 }
 
-std::size_t RefHubAudioProcessor::copyLinkedInstances(
-    std::array<ehvota::communication::SharedInstanceSnapshot,
-        ehvota::communication::sharedLinkMaxInstances>& destination) const
-{
-    const juce::ScopedLock lock(linkCacheLock_);
-    const auto count = linkedCount_.load(std::memory_order_acquire);
-    for (std::size_t i = 0; i < count; ++i)
-        destination[i] = linkedInstances_[i];
-    return count;
-}
-
-juce::AudioProcessorEditor* RefHubAudioProcessor::createEditor()
-{
-    return new RefHubAudioProcessorEditor(*this);
-}
-
-void RefHubAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
-{
-    juce::MemoryOutputStream stream(destination, true);
-    stream.writeInt(3);
-    stream.writeFloat(referenceTrimDb_.load(std::memory_order_relaxed));
-    stream.writeBool(renderSafe_.load(std::memory_order_acquire));
-}
-
-void RefHubAudioProcessor::setStateInformation(const void* data, const int size)
-{
-    juce::MemoryInputStream stream(data, static_cast<std::size_t>(size), false);
-    const auto version = stream.readInt();
-    if (version >= 2) {
-        setReferenceMonitorTrimDb(stream.readFloat());
-        setRenderSafe(stream.readBool());
-    }
-}
-
+juce::AudioProcessorEditor*RefHubAudioProcessor::createEditor(){return new RefHubAudioProcessorEditor(*this);}void RefHubAudioProcessor::getStateInformation(juce::MemoryBlock&d){juce::MemoryOutputStream s(d,true);s.writeInt(3);s.writeFloat(referenceTrimDb_.load());s.writeBool(renderSafe_.load());}void RefHubAudioProcessor::setStateInformation(const void*d,int n){juce::MemoryInputStream s(d,(std::size_t)n,false);auto v=s.readInt();if(v>=2){setReferenceMonitorTrimDb(s.readFloat());setRenderSafe(s.readBool());}}
 } // namespace ehvota::refhub
-
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
-{
-    return new ehvota::refhub::RefHubAudioProcessor();
-}
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter(){return new ehvota::refhub::RefHubAudioProcessor();}

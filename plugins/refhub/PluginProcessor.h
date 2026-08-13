@@ -2,6 +2,7 @@
 
 #include "plugins/common/RefLinkEndpoint.h"
 #include "shared/audio/CaptureBuffer.h"
+#include "shared/safety/ProposalPolicy.h"
 
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -68,6 +69,12 @@ public:
         std::array<ehvota::communication::SharedInstanceSnapshot,
             ehvota::communication::sharedLinkMaxInstances>& destination) const;
     [[nodiscard]] ehvota::communication::SharedLinkOpenStatus refLinkStatus() const noexcept { return refLink_.status(); }
+
+    // This is deliberately the only RefHub cross-plugin write API. It accepts the durable
+    // Proposal object, rechecks its approval/freshness and derives the mailbox from it.
+    [[nodiscard]] bool submitApprovedProposal(
+        const ehvota::safety::Proposal& proposal,
+        ehvota::communication::SharedInstanceId target);
 
 private:
     void timerCallback() override;
