@@ -23,6 +23,7 @@ add_subdirectory(shared/timing)
 add_subdirectory(shared/viewmodels)
 add_subdirectory(shared/communication)
 add_subdirectory(shared/safety)
+add_subdirectory(shared/state)
 
 if(EHVOTA_BUILD_UI_PREVIEW OR EHVOTA_BUILD_PLUGINS)
     if(NOT WIN32)
