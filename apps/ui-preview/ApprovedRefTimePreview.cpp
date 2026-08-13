@@ -66,11 +66,11 @@ void ApprovedRefTimePreview::paint(juce::Graphics& g)
     g.setColour(c(ui::colour::positive));
     g.fillEllipse(static_cast<float>(header.getX()), static_cast<float>(header.getCentreY() - 3), 6.0f, 6.0f);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(11.0f, true));
-    g.drawText("  HOST SYNC · Ableton Live 12 Suite", header.removeFromLeft(240), juce::Justification::centredLeft);
-    g.drawText("120.000 BPM    ·    4 / 4    ·    48 kHz", header, juce::Justification::centredRight);
+    g.setFont(ui::font(10.5f, true));
+    g.drawText("  HOST SYNC · Ableton Live 12 Suite", header.removeFromLeft(230), juce::Justification::centredLeft);
+    g.drawText("120.000 BPM  ·  4 / 4  ·  48 kHz", header, juce::Justification::centredRight);
 
-    auto footer = bounds.removeFromBottom(76);
+    auto footer = bounds.removeFromBottom(78);
     bounds.removeFromBottom(10);
 
     auto left = bounds.removeFromLeft(220);
@@ -85,91 +85,106 @@ void ApprovedRefTimePreview::paint(juce::Graphics& g)
 
     auto l = left.reduced(16);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(10.0f, true));
-    g.drawText("TIMING SOURCE", l.removeFromTop(22), juce::Justification::centredLeft);
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("TIMING SOURCE", l.removeFromTop(20), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::positive));
     g.setFont(ui::font(13.0f, true));
-    g.drawText("HOST", l.removeFromTop(28), juce::Justification::centredLeft);
+    g.drawText("HOST", l.removeFromTop(25), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::numericFont(11.0f));
-    g.drawText("Tempo      120.000 BPM", l.removeFromTop(25), juce::Justification::centredLeft);
-    g.drawText("Meter      4 / 4", l.removeFromTop(25), juce::Justification::centredLeft);
-    g.drawText("Sample rate 48,000 Hz", l.removeFromTop(25), juce::Justification::centredLeft);
-    l.removeFromTop(12);
+    g.setFont(ui::numericFont(10.5f));
+    g.drawText("Tempo        120.000 BPM", l.removeFromTop(22), juce::Justification::centredLeft);
+    g.drawText("Meter        4 / 4", l.removeFromTop(22), juce::Justification::centredLeft);
+    g.drawText("Sample rate  48,000 Hz", l.removeFromTop(22), juce::Justification::centredLeft);
+    l.removeFromTop(8);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(10.0f, true));
-    g.drawText("TECHNICAL LATENCY", l.removeFromTop(22), juce::Justification::centredLeft);
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("NOTE DIVISION", l.removeFromTop(18), juce::Justification::centredLeft);
+    l.removeFromTop(38);
+    g.drawText("MODIFIER", l.removeFromTop(18), juce::Justification::centredLeft);
+    l.removeFromTop(38);
+    g.setColour(c(ui::colour::textSecondary));
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("TECHNICAL LATENCY", l.removeFromTop(20), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::positive));
     g.setFont(ui::numericFont(14.0f, true));
-    g.drawText("0 samples", l.removeFromTop(26), juce::Justification::centredLeft);
+    g.drawText("0 samples", l.removeFromTop(24), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::textMuted));
-    g.setFont(ui::font(10.5f));
-    g.drawFittedText("Intentional musical delay is not reported to Ableton as plugin latency.", l, juce::Justification::topLeft, 3);
+    g.setFont(ui::font(10.0f));
+    g.drawFittedText("Intentional musical delay is audio timing. It is never reported to Ableton as plugin latency.", l, juce::Justification::topLeft, 4);
 
     auto cc = centre.reduced(18);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(10.0f, true));
-    g.drawText("EXACT DELAY", cc.removeFromTop(24), juce::Justification::centred);
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("EXACT DELAY", cc.removeFromTop(22), juce::Justification::centred);
     g.setColour(c(ui::colour::liveMix));
-    g.setFont(ui::numericFont(46.0f, true));
-    g.drawText("93.750", cc.removeFromTop(68), juce::Justification::centred);
+    g.setFont(ui::numericFont(50.0f, true));
+    g.drawText("93.750", cc.removeFromTop(72), juce::Justification::centred);
     g.setColour(c(ui::colour::textPrimary));
-    g.setFont(ui::font(18.0f, true));
-    g.drawText("ms", cc.removeFromTop(28), juce::Justification::centred);
+    g.setFont(ui::font(17.0f, true));
+    g.drawText("ms", cc.removeFromTop(26), juce::Justification::centred);
 
-    auto readouts = cc.removeFromTop(52);
+    auto readouts = cc.removeFromTop(54);
     const auto third = readouts.getWidth() / 3;
     auto rounded = readouts.removeFromLeft(third);
     auto samples = readouts.removeFromLeft(third);
     auto frequency = readouts;
     g.setColour(c(ui::colour::textMuted));
-    g.setFont(ui::font(9.5f, true));
-    g.drawText("ROUNDED", rounded.removeFromTop(18), juce::Justification::centred);
-    g.drawText("SAMPLES", samples.removeFromTop(18), juce::Justification::centred);
-    g.drawText("FREQUENCY", frequency.removeFromTop(18), juce::Justification::centred);
+    g.setFont(ui::font(9.0f, true));
+    g.drawText("ROUNDED", rounded.removeFromTop(17), juce::Justification::centred);
+    g.drawText("SAMPLES", samples.removeFromTop(17), juce::Justification::centred);
+    g.drawText("FREQUENCY", frequency.removeFromTop(17), juce::Justification::centred);
     g.setColour(c(ui::colour::textPrimary));
-    g.setFont(ui::numericFont(14.0f, true));
+    g.setFont(ui::numericFont(13.5f, true));
     g.drawText("94 ms", rounded, juce::Justification::centred);
     g.drawText("4,500", samples, juce::Justification::centred);
     g.drawText("10.667 Hz", frequency, juce::Justification::centred);
 
-    cc.removeFromTop(10);
+    cc.removeFromTop(6);
+    g.setColour(c(ui::colour::liveMix));
+    g.setFont(ui::font(11.0f, true));
+    g.drawText("Source  →  RefTime  →  Third-party effect", cc.removeFromTop(30), juce::Justification::centred);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(10.5f));
-    g.drawFittedText("Source  →  RefTime  →  Third-party reverb / delay\nFor external reverb pre-delay: set the following effect 100% wet and its own pre-delay to 0 ms.", cc, juce::Justification::centred, 3);
+    g.setFont(ui::font(10.0f));
+    g.drawFittedText("For external reverb pre-delay, set the following effect 100% wet and its own pre-delay to 0 ms. RefTime determines the musical onset.", cc, juce::Justification::centred, 4);
 
     auto r = right.reduced(16);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(10.0f, true));
-    g.drawText("TEMPO CHANGE", r.removeFromTop(22), juce::Justification::centredLeft);
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("TEMPO CHANGE", r.removeFromTop(20), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::textPrimary));
     g.setFont(ui::font(12.0f, true));
-    g.drawText("Clean Crossfade", r.removeFromTop(28), juce::Justification::centredLeft);
+    g.drawText("Clean Crossfade", r.removeFromTop(25), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::textMuted));
-    g.setFont(ui::font(10.5f));
-    g.drawFittedText("Alternative modes: Instant and creative Tape Glide. Host tempo changes must not click.", r.removeFromTop(70), juce::Justification::topLeft, 4);
+    g.setFont(ui::font(10.0f));
+    g.drawFittedText("Default: smooth timing updates without clicks. Alternatives: Instant and creative Tape Glide.", r.removeFromTop(64), juce::Justification::topLeft, 4);
+    r.removeFromTop(4);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(10.0f, true));
-    g.drawText("USE CASE", r.removeFromTop(22), juce::Justification::centredLeft);
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("OUTPUT MODE", r.removeFromTop(20), juce::Justification::centredLeft);
+    r.removeFromTop(38);
+    g.setColour(c(ui::colour::textSecondary));
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("EXTERNAL EFFECT WORKFLOW", r.removeFromTop(20), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::textPrimary));
-    g.setFont(ui::font(11.0f));
-    g.drawFittedText("Place RefTime before Valhalla or another third-party effect on a send. RefTime controls effect onset; it does not remotely edit the third-party plugin.", r, juce::Justification::topLeft, 6);
+    g.setFont(ui::font(10.0f));
+    g.drawFittedText("Place RefTime before Valhalla or another third-party effect on a send. RefTime controls onset only; it does not edit that plugin remotely.", r, juce::Justification::topLeft, 6);
 
     panel(g, footer);
-    auto f = footer.reduced(18, 12);
+    auto f = footer.reduced(16, 12);
+    auto description = f.removeFromLeft(170);
     g.setColour(c(ui::colour::proposed));
-    g.setFont(ui::font(10.0f, true));
-    g.drawText("OUTPUT", f.removeFromLeft(70), juce::Justification::centredLeft);
+    g.setFont(ui::font(9.5f, true));
+    g.drawText("COPY / OUTPUT", description.removeFromTop(20), juce::Justification::centredLeft);
     g.setColour(c(ui::colour::textSecondary));
-    g.setFont(ui::font(10.5f));
-    g.drawText("Delayed Only is the default external pre-delay path. Musical delay remains intentional audio timing, not host compensation.", f, juce::Justification::centredLeft);
+    g.setFont(ui::font(9.5f));
+    g.drawFittedText("Exact and rounded values stay visible so you can paste timing into any effect.", description, juce::Justification::topLeft, 3);
 }
 
 void ApprovedRefTimePreview::resized()
 {
     auto bounds = getLocalBounds().reduced(14);
     bounds.removeFromTop(60);
-    auto footer = bounds.removeFromBottom(76);
+    auto footer = bounds.removeFromBottom(78);
     bounds.removeFromBottom(10);
 
     auto left = bounds.removeFromLeft(220);
@@ -179,16 +194,17 @@ void ApprovedRefTimePreview::resized()
     auto right = bounds;
 
     auto l = left.reduced(16);
-    l.removeFromTop(172);
+    l.removeFromTop(137);
     divisionSelector_.setBounds(l.removeFromTop(32));
-    l.removeFromTop(8);
+    l.removeFromTop(18);
     modifierSelector_.setBounds(l.removeFromTop(32));
 
     auto r = right.reduced(16);
-    r.removeFromTop(200);
+    r.removeFromTop(133);
     outputModeSelector_.setBounds(r.removeFromTop(32));
 
-    auto f = footer.reduced(18, 18);
+    auto f = footer.reduced(16, 18);
+    f.removeFromLeft(180);
     copyExactButton_.setBounds(f.removeFromRight(132));
     f.removeFromRight(8);
     copyRoundedButton_.setBounds(f.removeFromRight(122));
