@@ -59,8 +59,10 @@ public:
         std::array<RefLinkInstanceSnapshot, maxInstances>& destination) const noexcept;
 
 private:
+    enum class SlotState : std::uint8_t { free, initializing, active };
+
     struct Slot {
-        std::atomic<bool> active { false };
+        std::atomic<SlotState> state { SlotState::free };
         std::atomic<std::uint32_t> generation { 0 };
         RefLinkRole role { RefLinkRole::unknown };
         std::array<char, 48> name {};
