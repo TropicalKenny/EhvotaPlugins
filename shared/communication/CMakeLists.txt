@@ -3,7 +3,16 @@ add_library(EhvotaCommunication STATIC
     BridgeProtocol.h
     RefLinkRegistry.cpp
     RefLinkRegistry.h
+    SharedLinkProtocol.cpp
+    SharedLinkProtocol.h
 )
+
+if(WIN32)
+    target_sources(EhvotaCommunication PRIVATE
+        RefLinkSharedMemoryWin.cpp
+        RefLinkSharedMemoryWin.h
+    )
+endif()
 
 target_include_directories(EhvotaCommunication
     PUBLIC
