@@ -1,6 +1,8 @@
 add_library(EhvotaCommunication STATIC
     BridgeProtocol.cpp
     BridgeProtocol.h
+    RefLinkRegistry.cpp
+    RefLinkRegistry.h
 )
 
 target_include_directories(EhvotaCommunication
