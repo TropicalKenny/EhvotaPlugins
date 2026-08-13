@@ -10,14 +10,17 @@ RefHubAudioProcessor::RefHubAudioProcessor()
           .withInput("Input", juce::AudioChannelSet::stereo(), true)
           .withOutput("Output", juce::AudioChannelSet::stereo(), true))
 {
+    formatManager_.registerBasicFormats();
 }
 
-void RefHubAudioProcessor::prepareToPlay(const double, const int)
+void RefHubAudioProcessor::prepareToPlay(const double sampleRate, const int samplesPerBlock)
 {
+    referenceTransport_.prepareToPlay(samplesPerBlock, sampleRate);
 }
 
 void RefHubAudioProcessor::releaseResources()
 {
+    referenceTransport_.releaseResources();
 }
 
 bool RefHubAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -28,6 +31,55 @@ bool RefHubAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) co
         || layouts.getMainInputChannelSet() == juce::AudioChannelSet::stereo();
 }
 
+bool RefHubAudioProcessor::loadReferenceFile(const juce::File& file)
+{
+    stopReferenceAudition();
+    referenceTransport_.setSource(nullptr);
+    referenceReaderSource_.reset();
+    referenceLoaded_.store(false, std::memory_order_release);
+
+    auto reader = std::unique_ptr<juce::AudioFormatReader>(formatManager_.createReaderFor(file));
+    if (!reader)
+        return false;
+
+    const auto sourceRate = reader->sampleRate;
+    referenceReaderSource_ = std::make_unique<juce::AudioFormatReaderSource>(reader.release(), true);
+    referenceTransport_.setSource(referenceReaderSource_.get(), 0, nullptr, sourceRate, 2);
+    referenceTransport_.setPosition(0.0);
+    referenceLoaded_.store(true, std::memory_order_release);
+    return true;
+}
+
+void RefHubAudioProcessor::unloadReferenceFile()
+{
+    stopReferenceAudition();
+    referenceTransport_.setSource(nullptr);
+    referenceReaderSource_.reset();
+    referenceLoaded_.store(false, std::memory_order_release);
+}
+
+void RefHubAudioProcessor::startReferenceAudition()
+{
+    if (!hasReferenceLoaded())
+        return;
+
+    if (referenceTransport_.hasStreamFinished())
+        referenceTransport_.setPosition(0.0);
+    referenceTransport_.start();
+    referenceAudition_.store(true, std::memory_order_release);
+}
+
+void RefHubAudioProcessor::stopReferenceAudition()
+{
+    referenceAudition_.store(false, std::memory_order_release);
+    referenceTransport_.stop();
+}
+
+void RefHubAudioProcessor::setReferenceMonitorTrimDb(const float trimDb) noexcept
+{
+    referenceTrimDb_.store(juce::jlimit(-24.0f, 24.0f, trimDb), std::memory_order_relaxed);
+}
+
 void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -36,6 +88,7 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     double sumSquares = 0.0;
     std::uint64_t count = 0;
 
+    // Measure the project signal before any monitoring-only reference substitution.
     for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
         const auto* data = buffer.getReadPointer(channel);
         for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
@@ -52,9 +105,21 @@ void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     livePeakDb_.store(juce::Decibels::gainToDecibels(peak, -100.0f), std::memory_order_relaxed);
     liveRmsDb_.store(juce::Decibels::gainToDecibels(rms, -100.0f), std::memory_order_relaxed);
 
-    // Version 1 foundation: RefHub's live input path is measurement-only.
-    // Reference audition and level-match gain live in dedicated monitoring paths and must never
-    // alter the project signal that reaches the host output/export path.
+    const bool offlineRenderProtected = renderSafe_.load(std::memory_order_acquire) && isNonRealtime();
+    const bool shouldAuditionReference = referenceAudition_.load(std::memory_order_acquire)
+        && referenceLoaded_.load(std::memory_order_acquire)
+        && !offlineRenderProtected;
+
+    if (shouldAuditionReference) {
+        juce::AudioSourceChannelInfo info(&buffer, 0, buffer.getNumSamples());
+        referenceTransport_.getNextAudioBlock(info);
+        buffer.applyGain(juce::Decibels::decibelsToGain(referenceTrimDb_.load(std::memory_order_relaxed)));
+        if (referenceTransport_.hasStreamFinished())
+            referenceAudition_.store(false, std::memory_order_release);
+    }
+
+    // Render Safe is deliberately one-way: when the host declares an offline/non-realtime render,
+    // reference audition is suppressed and the untouched project signal remains at the output.
 }
 
 juce::AudioProcessorEditor* RefHubAudioProcessor::createEditor()
@@ -65,11 +130,19 @@ juce::AudioProcessorEditor* RefHubAudioProcessor::createEditor()
 void RefHubAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
 {
     juce::MemoryOutputStream stream(destination, true);
-    stream.writeInt(1);
+    stream.writeInt(2);
+    stream.writeFloat(referenceTrimDb_.load(std::memory_order_relaxed));
+    stream.writeBool(renderSafe_.load(std::memory_order_acquire));
 }
 
-void RefHubAudioProcessor::setStateInformation(const void*, const int)
+void RefHubAudioProcessor::setStateInformation(const void* data, const int size)
 {
+    juce::MemoryInputStream stream(data, static_cast<std::size_t>(size), false);
+    const auto version = stream.readInt();
+    if (version >= 2) {
+        setReferenceMonitorTrimDb(stream.readFloat());
+        setRenderSafe(stream.readBool());
+    }
 }
 
 } // namespace ehvota::refhub
