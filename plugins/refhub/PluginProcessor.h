@@ -1,6 +1,7 @@
 #pragma once
 
 #include "plugins/common/RefLinkEndpoint.h"
+#include "shared/analysis/ComparisonAnalysis.h"
 #include "shared/audio/CaptureBuffer.h"
 #include "shared/safety/ProposalPolicy.h"
 
@@ -12,6 +13,8 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 
 namespace ehvota::refhub {
 
@@ -27,19 +30,16 @@ public:
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
-
     const juce::String getName() const override { return JucePlugin_Name; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
-
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram(int) override {}
     const juce::String getProgramName(int) override { return {}; }
     void changeProgramName(int, const juce::String&) override {}
-
     void getStateInformation(juce::MemoryBlock&) override;
     void setStateInformation(const void*, int) override;
 
@@ -70,14 +70,28 @@ public:
             ehvota::communication::sharedLinkMaxInstances>& destination) const;
     [[nodiscard]] ehvota::communication::SharedLinkOpenStatus refLinkStatus() const noexcept { return refLink_.status(); }
 
-    // This is deliberately the only RefHub cross-plugin write API. It accepts the durable
-    // Proposal object, rechecks its approval/freshness and derives the mailbox from it.
+    // Stage is analysis-only. It never marks a recommendation approved or writes a target plugin.
+    [[nodiscard]] bool stageRefEqProposal(
+        const ehvota::analysis::SectionComparison& comparison,
+        ehvota::communication::SharedInstanceId target,
+        std::string evidenceId);
+    [[nodiscard]] std::optional<ehvota::safety::Proposal> copyStagedProposal() const;
+    void rejectStagedProposal();
+
+    // Explicit approval is a separate action. Only this path can move a staged proposal into RefLink.
+    [[nodiscard]] bool approveAndSubmitStagedProposal();
+
+    // Deliberately the only low-level RefHub cross-plugin write API.
     [[nodiscard]] bool submitApprovedProposal(
         const ehvota::safety::Proposal& proposal,
         ehvota::communication::SharedInstanceId target);
 
 private:
     void timerCallback() override;
+    void reconcileStagedProposal(
+        const std::array<ehvota::communication::SharedInstanceSnapshot,
+            ehvota::communication::sharedLinkMaxInstances>& snapshots,
+        std::size_t count);
 
     juce::AudioFormatManager formatManager_;
     std::unique_ptr<juce::AudioFormatReaderSource> referenceReaderSource_;
@@ -101,6 +115,10 @@ private:
     std::array<ehvota::communication::SharedInstanceSnapshot,
         ehvota::communication::sharedLinkMaxInstances> linkedInstances_ {};
     std::atomic<std::size_t> linkedCount_ {};
+
+    mutable juce::CriticalSection proposalLock_;
+    std::optional<ehvota::safety::Proposal> stagedProposal_;
+    ehvota::communication::SharedInstanceId stagedTarget_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RefHubAudioProcessor)
 };
