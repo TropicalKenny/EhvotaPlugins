@@ -1,3 +1,6 @@
+#include "ApprovedRefHubPreview.h"
+#include "ApprovedRefTimePreview.h"
+#include "ApprovedSourcesPreview.h"
 #include "PreviewComponent.h"
 
 #include "shared/ui/EhvotaLookAndFeel.h"
@@ -38,6 +41,61 @@ std::vector<std::string> launchArgumentsFromJuce()
     return result;
 }
 
+std::unique_ptr<juce::Component> makePreviewComponent(const ehvota::preview::LaunchOptions& options)
+{
+    std::unique_ptr<juce::Component> content;
+
+    if (options.scenarioId == "compare-chorus") {
+        content = std::make_unique<ehvota::previewapp::ApprovedRefHubPreview>();
+    }
+    else if (options.scenarioId == "mapping-disconnected") {
+        content = std::make_unique<ehvota::previewapp::ApprovedSourcesPreview>();
+    }
+    else if (options.scenarioId == "reftime-120") {
+        content = std::make_unique<ehvota::previewapp::ApprovedRefTimePreview>();
+    }
+    else {
+        auto legacy = std::make_unique<ehvota::previewapp::PreviewComponent>();
+        if (!legacy->selectScenarioById(options.scenarioId))
+            throw std::invalid_argument("Unknown preview scenario: " + options.scenarioId);
+        if (options.journeyStep.has_value()
+            && !legacy->selectJourneyStep(static_cast<std::size_t>(*options.journeyStep))) {
+            throw std::invalid_argument(
+                "Journey step is unavailable for scenario "
+                + options.scenarioId + ": "
+                + std::to_string(*options.journeyStep));
+        }
+        content = std::move(legacy);
+    }
+
+    content->setSize(options.contentWidth, options.contentHeight);
+    return content;
+}
+
+void renderSnapshot(const ehvota::preview::LaunchOptions& options, const juce::File& destination)
+{
+    auto content = makePreviewComponent(options);
+
+    const auto parent = destination.getParentDirectory();
+    if (!parent.exists() && !parent.createDirectory())
+        throw std::runtime_error("Could not create snapshot directory: " + parent.getFullPathName().toStdString());
+
+    auto image = content->createComponentSnapshot(content->getLocalBounds(), false, 1.0f);
+    if (!image.isValid())
+        throw std::runtime_error("Could not render preview snapshot image.");
+
+    juce::FileOutputStream stream(destination);
+    if (!stream.openedOk())
+        throw std::runtime_error("Could not open snapshot destination: " + destination.getFullPathName().toStdString());
+
+    juce::PNGImageFormat png;
+    if (!png.writeImageToStream(image, stream))
+        throw std::runtime_error("Could not encode preview snapshot as PNG.");
+
+    stream.flush();
+    std::cout << "Ehvota UI Preview snapshot: " << destination.getFullPathName() << std::endl;
+}
+
 class PreviewWindow final : public juce::DocumentWindow {
 public:
     explicit PreviewWindow(const ehvota::preview::LaunchOptions& options)
@@ -54,18 +112,7 @@ public:
             ehvota::preview::maximumLaunchWidth,
             ehvota::preview::maximumLaunchHeight);
 
-        auto content = std::make_unique<ehvota::previewapp::PreviewComponent>();
-        content->setSize(options.contentWidth, options.contentHeight);
-        if (!content->selectScenarioById(options.scenarioId))
-            throw std::invalid_argument("Unknown preview scenario: " + options.scenarioId);
-        if (options.journeyStep.has_value()
-            && !content->selectJourneyStep(static_cast<std::size_t>(*options.journeyStep))) {
-            throw std::invalid_argument(
-                "Journey step is unavailable for scenario "
-                + options.scenarioId + ": "
-                + std::to_string(*options.journeyStep));
-        }
-
+        auto content = makePreviewComponent(options);
         preview_ = content.get();
         setContentOwned(content.release(), true);
         centreWithSize(getWidth(), getHeight());
@@ -79,7 +126,7 @@ public:
     }
 
 private:
-    ehvota::previewapp::PreviewComponent* preview_ { nullptr };
+    juce::Component* preview_ { nullptr };
 };
 
 class PreviewApplication final : public juce::JUCEApplication {
@@ -100,6 +147,14 @@ public:
         }
 
         try {
+            const auto snapshotPath = juce::SystemStats::getEnvironmentVariable("EHVOTA_SNAPSHOT_PATH", {});
+            if (snapshotPath.isNotEmpty()) {
+                renderSnapshot(*parsed.options, juce::File(snapshotPath));
+                setApplicationReturnValue(0);
+                quit();
+                return;
+            }
+
             window_ = std::make_unique<PreviewWindow>(*parsed.options);
         }
         catch (const std::exception& exception) {

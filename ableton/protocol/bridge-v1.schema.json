@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ehvota.local/schema/bridge-v1.schema.json",
+  "title": "Ehvota Bridge v1 message",
+  "oneOf": [
+    { "$ref": "#/$defs/snapshot" },
+    { "$ref": "#/$defs/heartbeat" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "protocol": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": { "type": "integer", "minimum": 1 },
+        "minor": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "device": {
+      "type": "object",
+      "required": ["bridgeId", "liveId", "livePath", "trackBridgeId"],
+      "properties": {
+        "bridgeId": { "type": "string", "minLength": 1 },
+        "liveId": { "type": "integer", "minimum": 1 },
+        "livePath": { "type": "string", "minLength": 1 },
+        "trackBridgeId": { "type": "string", "minLength": 1 },
+        "name": { "type": ["string", "null"] },
+        "className": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "track": {
+      "type": "object",
+      "required": ["bridgeId", "liveId", "livePath", "kind", "devices"],
+      "properties": {
+        "bridgeId": { "type": "string", "minLength": 1 },
+        "liveId": { "type": "integer", "minimum": 1 },
+        "livePath": { "type": "string", "minLength": 1 },
+        "name": { "type": ["string", "null"] },
+        "kind": { "enum": ["track", "return", "master", "group", "unknown"] },
+        "mute": { "type": ["integer", "number", "null"] },
+        "solo": { "type": ["integer", "number", "null"] },
+        "arm": { "type": ["integer", "number", "null"] },
+        "devices": { "type": "array", "items": { "$ref": "#/$defs/device" } }
+      },
+      "additionalProperties": true
+    },
+    "snapshot": {
+      "type": "object",
+      "required": ["type", "protocol", "health", "sequence", "timestampMs"],
+      "properties": {
+        "type": { "const": "snapshot" },
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "bridgeVersion": { "type": "string" },
+        "health": { "enum": ["healthy", "unavailable", "permissionLimited"] },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "timestampMs": { "type": "integer", "minimum": 0 },
+        "uptimeMs": { "type": "integer", "minimum": 0 },
+        "song": { "type": "object" },
+        "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } }
+      },
+      "additionalProperties": true
+    },
+    "heartbeat": {
+      "type": "object",
+      "required": ["type", "protocol", "sequence", "timestampMs", "uptimeMs"],
+      "properties": {
+        "type": { "const": "heartbeat" },
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "timestampMs": { "type": "integer", "minimum": 0 },
+        "uptimeMs": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "required": ["type", "message"],
+      "properties": {
+        "type": { "const": "error" },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  }
+}

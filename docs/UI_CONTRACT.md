@@ -1,7 +1,98 @@
 # UI contract
 
-Status: **Provisional Phase 1 contract. Not user-approved.**
-The implemented JUCE preview and Windows validation may refine this document. Production DSP is blocked until the user approves the resulting interface direction.
+Status: **RefHub visual foundation approved by user on 2026-08-12.** Production DSP remains blocked until the coded JUCE preview reproduces the approved direction and passes the UI approval gate for the remaining required screens.
+
+## Approved RefHub visual foundation
+
+The approved RefHub direction is the Precision Studio concept reviewed on 2026-08-12. It is now the visual contract for implementation, not an exploratory mockup.
+
+### Visual hierarchy
+
+- Near-black/graphite studio canvas with minimal chrome and restrained borders.
+- Cyan identifies **Your Mix**.
+- Violet/purple identifies **Reference**.
+- Warm amber/orange identifies an actionable difference, selected problem range, or proposed intervention.
+- Green is reserved primarily for healthy/connected/success states.
+- The musical timeline and analysis canvas dominate the interface.
+- Findings appear in context on the analysis surface and in a compact Ehvota Insight area; the UI must not regress into a generic SaaS/monitoring dashboard.
+- Secondary information uses progressive disclosure and a collapsible contextual inspector.
+
+### Approved primary structure
+
+Top header:
+- Ehvota / RefHub identity.
+- Reference selector.
+- Section selector.
+- MIX / REF A-B control.
+- Ableton Link/bridge health.
+- Blind.
+- Capture.
+- Undo / Redo.
+- Settings and compact output/activity indication.
+
+Left rail:
+- Compare.
+- Sources.
+- Process.
+- History.
+- Settings may remain a compact utility control rather than another large navigation destination.
+
+Compare canvas:
+- dual waveform timeline for Your Mix and Reference;
+- named musical sections such as Intro, Verse, Chorus, Outro;
+- selected section range and duration;
+- transport / A-B audition controls;
+- loop/capture status;
+- level-match state;
+- Tone / Dynamics / Space / Components lenses over the same comparison workspace;
+- large primary analyser;
+- contextual selected-range finding;
+- collapsible inspector;
+- compact Ehvota Insight / suggested-focus / quick-action region.
+
+The approved concept contains a selected low-mid example around 220–410 Hz with Your Mix, Reference, difference, confidence, contributors, listening actions, comparison action, and Create Proposal. These values are illustrative fixture data, not hard-coded DSP claims.
+
+## Automatic reference level matching — REQUIRED
+
+Automatic perceptual level matching is a core RefHub feature and must not be treated as optional polish.
+
+### Behaviour
+
+- Level matching changes **monitoring/audition gain only**. It never modifies the source reference file, project audio, exported audio, captured evidence, or underlying measurements.
+- RefHub measures the relevant captured Mix and Reference material using perceptual loudness suitable for reference comparison rather than peak normalization.
+- The UI must expose the measured loudness values and the monitoring compensation/trim used for the comparison.
+- Switching MIX ↔ REF while Level Match is enabled must preserve a fair perceived-loudness comparison.
+- Turning Level Match off must audition the uncompensated original relative levels.
+- Blind Compare defaults to Level Match enabled so loudness does not trivially reveal or bias the source. A deliberate advanced override may exist, but the default blind workflow is matched.
+- Band/range audition must use controlled audition gain so a filtered range is not judged merely as worse because filtering made it quieter. This audition compensation remains monitoring-only and must be clearly distinct from processing.
+
+### Modes
+
+RefHub must support these explicit modes:
+
+1. **Auto / Section** — default and recommended. Match the currently paired captured Mix and Reference sections (for example Chorus 1 ↔ Chorus 1).
+2. **Whole Track** — use the validated whole-track Mix/Reference loudness relationship where sufficient evidence exists.
+3. **Off** — no monitoring compensation; preserve the actual loudness difference.
+
+If the selected section lacks sufficient stable captured evidence, Auto / Section must not silently invent a value. It must fall back only according to a documented rule (for example Whole Track when valid) and label that fallback, or report that section matching is unavailable.
+
+### UI requirements
+
+The Level Match surface must make it possible to inspect:
+- current mode;
+- on/off state;
+- Mix loudness;
+- Reference loudness;
+- applied monitoring trim/compensation;
+- whether values are section-based, whole-track, live/temporary, captured/stable, or fallback;
+- stale/degraded/unavailable state.
+
+Example presentation (illustrative only):
+
+`SECTION MATCH · ON`
+`Mix -14.8 LUFS · Ref -10.9 LUFS · Ref monitor trim -3.9 dB`
+
+Do not imply that equal LUFS guarantees identical perceived loudness. The feature is an objective perceptual-level aid and the final comparison remains auditory.
 
 ## Global invariants
 
@@ -9,96 +100,55 @@ The implemented JUCE preview and Windows validation may refine this document. Pr
 - Audition-only controls say they are audition-only and cannot enter export.
 - Live, captured, stale, missing, and invalid data have distinct labelled states.
 - Proposed processing is visually and behaviorally distinct from active processing.
-- Automatic changes are never applied without explicit review and acceptance.
+- Automatic processing changes are never applied without explicit review and acceptance.
 - Every confidence display includes a level and inspectable reasons.
 - Every user action that changes state supports undo where technically meaningful.
 - Critical actions are reachable by keyboard and expose accessible names, roles, values, and states.
 - Resizing causes layout reflow, not illegible uniform shrink.
+- Render Safe must disable/bypass monitoring-only audition paths that must not enter an export.
 
-## Shared shell contract
+## Ableton-first integration boundary
 
-Required:
+Ableton Live 12 Suite on Windows is the primary host target. Ehvota processors remain VST3. Max for Live / Live Object Model integration is an external host-state bridge, not the DSP implementation.
 
-- Ehvota identity and product name.
-- Preset browser, previous/next, save.
-- Undo/redo.
-- A/B state comparison.
-- Bypass for processors; RefTap uses analysis enable/status rather than implying audio bypass.
-- Help and interface scaling.
-- Output meter where relevant.
-- Link status where relevant.
-- Exact value entry.
-- Consistent warning/status area.
+RefHub may display Ableton connection health and use validated host context, but the visual identity remains Ehvota's own. Ableton integration should be informative and unobtrusive.
 
-The shell must show Render Safe state in RefHub and any processor where monitoring-only paths exist.
+The future Codex/MCP bridge may inspect Ehvota and Ableton state, but externally initiated processing changes must pass through the same proposal, validation, permission, preview and undo boundaries used by RefHub. No external client may bypass those controls.
 
-The production `SuiteShell` source now implements responsive compact/standard/wide action placement, labelled overflow, product-capability controls, accessible status detail, and an output-level indicator. The preview wires deterministic preset, undo/redo, A/B, processing/monitor, Help, and scale interactions. Render Safe locks monitoring off. Windows layout, focus-order, Narrator, and host-shortcut evidence remain pending.
+## Contextual inspector
 
-## Preview journey replay
+The inspector is contextual and collapsible. It may show Range, Component, or Source details. When collapsed, the analyser expands into the reclaimed space. It must not reserve a large empty permanent column.
 
-The standalone Phase 1 preview exposes a non-production review strip for each of the eight primary journeys:
+For a selected range it may show:
+- exact frequency range;
+- Mix value;
+- Reference value;
+- average difference;
+- confidence;
+- contributors such as Drums, Bass, Music, Vocals;
+- Listen Range;
+- Compare A/B;
+- Create Proposal.
 
-- journey and step identity are always visible;
-- Back and Next have labelled buttons and `Ctrl+Alt+Left` / `Ctrl+Alt+Right` equivalents;
-- boundary actions disable instead of wrapping silently;
-- selecting a primary scenario resets its journey to Step 1;
-- required-state scenarios hide the journey strip rather than implying that they are complete workflows;
-- `--scenario=<id> --step=<n>` selects a deterministic review state at launch.
+## Ehvota Insight and proposals
 
-This strip validates the interaction contract and documented sequence. It does not claim that audio, filesystem, model, plugin-link, clipboard, or host side effects are implemented during Phase 1.
+The Insight region interprets evidence without pretending that measurements are taste.
 
-## State model
+- Prefer one prioritised finding over a wall of equal-weight cards.
+- Suggested processing remains a **proposal** until explicitly accepted.
+- Do not use language or controls that imply an automatic fix has already been applied.
+- A quick action may create a gentle proposal, but the production wording should prefer `Create Proposal` / `Preview Proposal` over an ambiguous `Apply Fix`.
+- Proposal details must identify every affected Ehvota instance/parameter, current/proposed value, confidence, expected benefit, trade-offs and limits.
 
-Every data-bearing module exposes:
+## Sources contract
 
-- `empty`: no configured source/data;
-- `loading`: bounded operation with progress where known;
-- `readyLive`: current data, not stable capture evidence;
-- `capturing`: deliberate capture with usable duration;
-- `readyCaptured`: stable, timestamped capture;
-- `stale`: formerly valid data whose source stopped updating;
-- `degraded`: partially usable with an explanation;
-- `offline`: required local component unavailable;
-- `error`: operation failed with recovery action;
-- `renderSafe`: monitoring paths disabled for export.
+Sources contains Library, Mapping, Sections and Validation. Detailed reference/stem validation belongs here rather than dominating the normal comparison view.
 
-Warnings never overwrite the last known valid value without marking it stale.
+Mapping must support reference stems and Ableton/Ehvota live sources, composites, disconnected assignments, saved mappings, and explicit validation. Uncertain roles are never silently assigned.
 
-## Confirmation policy
+## Process contract
 
-No confirmation:
-
-- navigation;
-- audition mode changes;
-- starting non-destructive validation;
-- copying a timing value;
-- selecting/focusing controls.
-
-Explicit action but no modal:
-
-- starting Capture Analysis;
-- generating a proposal;
-- loading a validated reference;
-- changing a mapping that can be undone.
-
-Confirmation required:
-
-- overwriting existing Stem Prep output;
-- deleting history/presets/reference metadata;
-- applying a proposal affecting multiple plugin instances;
-- clearing a queue with active work;
-- changing a path that invalidates active references.
-
-## RefHub contract
-
-- The persistent comparison strip remains visible throughout relevant views.
-- Overview presents no more than the most important Tone, Dynamics, Space, capture, mapping, and confidence summaries.
-- Library never silently assigns an uncertain role.
-- Mapping preserves disconnected assignments and labels them unavailable.
-- Compare keeps listening controls adjacent to the measurements they contextualize.
-- Capture Analysis is the primary basis for recommendations; Live Monitor is labelled as fast feedback.
-- Proposals list every instance/parameter, current/proposed value, confidence, benefit, trade-off, and limit.
-- History records source identity, section pair, mappings, capture time, measurements, and linked settings.
+Process contains Links, Proposals, Signal Chain and Learn. It exposes connected RefTap/RefEQ/RefComp/future Ehvota processors, health and roles. External/Codex proposals use the same review path as local RefHub proposals.
 
 ## RefTime contract
 
@@ -135,35 +185,30 @@ Values are logical pixels and may be refined from Windows evidence. All major pl
 
 ## UI performance budgets
 
-Initial Phase 1 acceptance targets, to be measured on the recorded Windows baseline:
-
 - No continuous repaint timer while the UI is idle and no data is changing.
 - Default live analyzer refresh: 30 Hz; optional High: at most 60 Hz; reduced-motion/high-CPU fallback: 15 Hz.
 - Hidden, minimized, or fully obscured graphs pause nonessential repaint work.
 - UI snapshot ingestion is bounded; a slow UI consumer may drop visual frames but never block the audio thread.
-- Paint/layout work at default RefHub size: p95 at or below 8 ms and no unexplained frame above 50 ms during the deterministic replay.
+- Paint/layout work at default RefHub size: p95 at or below 8 ms and no unexplained frame above 50 ms during deterministic replay.
 - Continuous resize: p95 input-to-updated-frame at or below 50 ms, with no stall above 150 ms.
 - Cold launch to interactive UI: at or below 1.5 seconds; warm launch: at or below 750 ms.
-- UI Preview working set: target below 96 MiB at startup and below 160 MiB while cycling every fixture.
 - Changing visual refresh quality must not change captured measurement values, proposal inputs, or audio processing.
 
 These are budgets, not current claims. Record hardware, Windows build, display scale, graphics backend, build type, scenario, sample count, and measurement method with results.
 
-## Acceptance checklist
+## Approval gate
 
-- [ ] All eight journeys are replayable from deterministic scenarios.
-  The eight validated step catalogues, navigation source, and deterministic launch option exist; rendered Windows exercise remains pending.
-- [ ] Empty, loading, offline, error, degraded, stale, render, bridged/unsupported, high-CPU, missing-model, licence-error, cancellation, and repair states exist where relevant.
-  Deterministic source fixtures now cover this state set, including dedicated bounded-loading and stale-data examples; rendered Windows review remains pending.
-- [ ] Minimum/default/wide layouts work without overlap or unreachable controls.
-- [ ] 100%, 125%, 150%, 175%, and 200% Windows scaling evidence exists.
-- [ ] Mixed-DPI movement and live scale change are tested where hardware permits.
-- [ ] Keyboard-only completion succeeds for primary actions.
-- [ ] Focus, exact entry, mouse wheel, fine adjustment, reset, undo/redo, A/B, help, and tooltips are verified.
-- [ ] Long names and Windows paths do not destroy layout.
-  A dedicated long-label fixture and accessible full comparison-context label exist; compact/default/wide Windows rendering remains pending.
-- [ ] High contrast, color-blind cues, reduced motion, and Narrator basics are reviewed.
-- [ ] Analyzer rendering meets the established UI budget without audio-thread impact.
-- [ ] Screenshots and review metadata exist under generated artefacts.
-- [ ] Self-review findings are resolved or recorded.
-- [ ] User explicitly approves the direction.
+Approved:
+- [x] RefHub overall visual direction / Precision Studio foundation.
+- [x] Ableton-first host direction.
+- [x] Automatic reference Level Match as a core feature with Auto/Section, Whole Track and Off modes.
+
+Still required before production DSP:
+- [ ] Coded JUCE RefHub Active Comparison preview matches the approved visual contract closely enough for user review.
+- [ ] RefHub Sources / Mapping approval screen.
+- [ ] RefTime approval screen.
+- [ ] Minimum/default/wide layouts without overlap or unreachable controls.
+- [ ] 100%, 125%, 150%, 175%, and 200% Windows scaling evidence.
+- [ ] Keyboard-only primary actions and basic accessibility review.
+- [ ] UTF-8 fixture and long-name/path review.
+- [ ] User explicitly approves the coded UI gate.

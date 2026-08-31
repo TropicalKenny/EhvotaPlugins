@@ -1,0 +1,919 @@
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
+#include "ReferenceFolderLoader.h"
+#include "ReferenceSectionReader.h"
+#include "shared/analysis/CapturedSectionAnalysis.h"
+#include "shared/safety/LinkProposalAdapter.h"
+#include "shared/safety/ReferenceProposalGenerator.h"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <span>
+#include <utility>
+#include <vector>
+
+namespace ehvota::refhub {
+namespace {
+
+constexpr std::array<ehvota::state::ReferenceRole, 4> componentRoles {
+    ehvota::state::ReferenceRole::drums,
+    ehvota::state::ReferenceRole::bass,
+    ehvota::state::ReferenceRole::vocals,
+    ehvota::state::ReferenceRole::music
+};
+
+std::size_t componentRoleIndex(const ehvota::state::ReferenceRole role) noexcept
+{
+    for (std::size_t i = 0; i < componentRoles.size(); ++i)
+        if (componentRoles[i] == role) return i;
+    return componentRoles.size();
+}
+
+template <std::size_t N>
+std::string fixedText(const std::array<char, N>& value)
+{
+    const auto end = std::find(value.begin(), value.end(), '\0');
+    return std::string(value.begin(), end);
+}
+
+std::string endpointToken(const ehvota::communication::SharedInstanceId id)
+{
+    return std::to_string(id.slot) + ":" + std::to_string(id.generation);
+}
+
+} // namespace
+
+RefHubAudioProcessor::RefHubAudioProcessor()
+    : AudioProcessor(BusesProperties()
+          .withInput("Input", juce::AudioChannelSet::stereo(), true)
+          .withOutput("Output", juce::AudioChannelSet::stereo(), true))
+{
+    formatManager_.registerBasicFormats();
+    for (std::size_t i = 0; i < savedComponentBindings_.size(); ++i)
+        savedComponentBindings_[i].role = componentRoles[i];
+    startTimerHz(10);
+}
+
+RefHubAudioProcessor::~RefHubAudioProcessor()
+{
+    stopTimer();
+    stopAnalysisThread();
+}
+
+void RefHubAudioProcessor::stopAnalysisThread() noexcept
+{
+    if (!analysisThread_.joinable())
+        return;
+    analysisThread_.request_stop();
+    analysisThread_.join();
+    analysisRunning_.store(false, std::memory_order_release);
+}
+
+void RefHubAudioProcessor::prepareToPlay(const double sampleRate, const int samplesPerBlock)
+{
+    referenceTransport_.prepareToPlay(samplesPerBlock, sampleRate);
+    mixCapture_.prepare(sampleRate, 60.0);
+    currentSampleRate_.store(sampleRate, std::memory_order_release);
+    currentHostSample_.store(-1, std::memory_order_release);
+    sampleCounter_.store(0, std::memory_order_relaxed);
+}
+
+void RefHubAudioProcessor::releaseResources()
+{
+    mixCapture_.cancel();
+    currentHostSample_.store(-1, std::memory_order_release);
+    referenceTransport_.releaseResources();
+}
+
+bool RefHubAudioProcessor::isBusesLayoutSupported(const BusesLayout& layout) const
+{
+    return layout.getMainInputChannelSet() == layout.getMainOutputChannelSet()
+        && (layout.getMainInputChannelSet() == juce::AudioChannelSet::mono()
+            || layout.getMainInputChannelSet() == juce::AudioChannelSet::stereo());
+}
+
+bool RefHubAudioProcessor::loadReferenceFile(const juce::File& file)
+{
+    stopReferenceAudition();
+    referenceTransport_.setSource(nullptr);
+    referenceReaderSource_.reset();
+    referenceLoaded_.store(false, std::memory_order_release);
+    setReferenceMonitorTrimDb(0.0f);
+
+    auto reader = std::unique_ptr<juce::AudioFormatReader>(formatManager_.createReaderFor(file));
+    if (!reader)
+        return false;
+
+    const auto sourceRate = reader->sampleRate;
+    referenceReaderSource_ = std::make_unique<juce::AudioFormatReaderSource>(reader.release(), true);
+    referenceTransport_.setSource(referenceReaderSource_.get(), 0, nullptr, sourceRate, 2);
+    referenceTransport_.setPosition(0.0);
+    {
+        const juce::ScopedLock lock(referenceLock_);
+        referenceFile_ = file;
+        savedReferencePath_ = file.getFullPathName();
+        referenceRestoreAttempted_ = true;
+        referenceGeneration_.fetch_add(1, std::memory_order_acq_rel);
+    }
+    {
+        const juce::ScopedLock lock(analysisLock_);
+        latestSectionAnalysis_.reset();
+    }
+
+    componentCoordinator_.setReferenceFolder(loadReferenceFolder(file.getParentDirectory()));
+    referenceLoaded_.store(true, std::memory_order_release);
+    return true;
+}
+
+void RefHubAudioProcessor::unloadReferenceFile()
+{
+    stopReferenceAudition();
+    referenceTransport_.setSource(nullptr);
+    referenceReaderSource_.reset();
+    {
+        const juce::ScopedLock lock(referenceLock_);
+        referenceFile_ = juce::File{};
+        savedReferencePath_.clear();
+        referenceRestoreAttempted_ = true;
+        referenceGeneration_.fetch_add(1, std::memory_order_acq_rel);
+    }
+    {
+        const juce::ScopedLock lock(analysisLock_);
+        latestSectionAnalysis_.reset();
+    }
+    componentCoordinator_.setReferenceFolder({});
+    referenceLoaded_.store(false, std::memory_order_release);
+    setReferenceMonitorTrimDb(0.0f);
+}
+
+juce::String RefHubAudioProcessor::savedReferencePath() const
+{
+    const juce::ScopedLock lock(referenceLock_);
+    return savedReferencePath_;
+}
+
+void RefHubAudioProcessor::restoreReferenceFromSavedPath()
+{
+    if (hasReferenceLoaded())
+        return;
+
+    juce::String path;
+    {
+        const juce::ScopedLock lock(referenceLock_);
+        if (referenceRestoreAttempted_ || savedReferencePath_.isEmpty())
+            return;
+        referenceRestoreAttempted_ = true;
+        path = savedReferencePath_;
+    }
+
+    const juce::File file(path);
+    if (file.existsAsFile())
+        (void) loadReferenceFile(file);
+}
+
+void RefHubAudioProcessor::startReferenceAudition()
+{
+    if (!hasReferenceLoaded())
+        return;
+    if (blindComparison() && !sectionLevelMatchReady())
+        return;
+    if (referenceTransport_.hasStreamFinished())
+        referenceTransport_.setPosition(0.0);
+    referenceTransport_.start();
+    referenceAudition_.store(true, std::memory_order_release);
+}
+
+void RefHubAudioProcessor::stopReferenceAudition()
+{
+    referenceAudition_.store(false, std::memory_order_release);
+    referenceTransport_.stop();
+}
+
+void RefHubAudioProcessor::setReferenceMonitorTrimDb(const float db) noexcept
+{
+    referenceTrimDb_.store(juce::jlimit(-24.0f, 24.0f, db), std::memory_order_relaxed);
+}
+
+bool RefHubAudioProcessor::beginMixCapture(const double durationSeconds) noexcept
+{
+    if (analysisRunning_.load(std::memory_order_acquire))
+        return false;
+    return mixCapture_.arm(durationSeconds);
+}
+
+void RefHubAudioProcessor::cancelMixCapture() noexcept
+{
+    if (!analysisRunning_.load(std::memory_order_acquire))
+        mixCapture_.cancel();
+}
+
+bool RefHubAudioProcessor::startSectionAnalysis(
+    const double referenceStartSeconds,
+    const double referenceDurationSeconds,
+    std::string sectionId)
+{
+    return startSectionAnalysisInternal(
+        std::nullopt, referenceStartSeconds, referenceDurationSeconds, std::move(sectionId));
+}
+
+bool RefHubAudioProcessor::startSectionAnalysis(
+    const ehvota::communication::SharedInstanceId refEqTarget,
+    const double referenceStartSeconds,
+    const double referenceDurationSeconds,
+    std::string sectionId)
+{
+    if (!refEqTarget.valid())
+        return false;
+    return startSectionAnalysisInternal(
+        refEqTarget, referenceStartSeconds, referenceDurationSeconds, std::move(sectionId));
+}
+
+bool RefHubAudioProcessor::startSectionAnalysisInternal(
+    const std::optional<ehvota::communication::SharedInstanceId> refEqTarget,
+    const double referenceStartSeconds,
+    const double referenceDurationSeconds,
+    std::string sectionId)
+{
+    if (!(referenceStartSeconds >= 0.0) || !(referenceDurationSeconds > 0.0)
+        || referenceDurationSeconds > 60.001 || !std::isfinite(referenceStartSeconds)
+        || !std::isfinite(referenceDurationSeconds) || sectionId.empty() || !hasReferenceLoaded())
+        return false;
+
+    if (refEqTarget) {
+        if (const auto staged = copyStagedProposal()) {
+            if (staged->state == ehvota::safety::ProposalState::readyForReview
+                || staged->state == ehvota::safety::ProposalState::approved)
+                return false;
+        }
+    }
+
+    bool expected = false;
+    if (!analysisRunning_.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
+        return false;
+
+    const auto capture = mixCapture_.completedView();
+    if (capture.left.empty() || capture.right.empty() || !(capture.sampleRate > 0.0)) {
+        analysisRunning_.store(false, std::memory_order_release);
+        analysisState_.store(SectionAnalysisState::error, std::memory_order_release);
+        return false;
+    }
+
+    juce::File file;
+    std::uint64_t referenceGeneration = 0;
+    {
+        const juce::ScopedLock lock(referenceLock_);
+        file = referenceFile_;
+        referenceGeneration = referenceGeneration_.load(std::memory_order_acquire);
+    }
+    if (!file.existsAsFile()) {
+        analysisRunning_.store(false, std::memory_order_release);
+        analysisState_.store(SectionAnalysisState::error, std::memory_order_release);
+        return false;
+    }
+
+    const auto refSamplesDouble = std::llround(referenceDurationSeconds * capture.sampleRate);
+    if (refSamplesDouble <= 0
+        || static_cast<unsigned long long>(refSamplesDouble) > std::numeric_limits<std::size_t>::max()) {
+        analysisRunning_.store(false, std::memory_order_release);
+        analysisState_.store(SectionAnalysisState::error, std::memory_order_release);
+        return false;
+    }
+    const auto referenceSamples = static_cast<std::size_t>(refSamplesDouble);
+
+    std::vector<float> mixLeft;
+    std::vector<float> mixRight;
+    try {
+        mixLeft.assign(capture.left.begin(), capture.left.end());
+        mixRight.assign(capture.right.begin(), capture.right.end());
+    } catch (...) {
+        analysisRunning_.store(false, std::memory_order_release);
+        analysisState_.store(SectionAnalysisState::error, std::memory_order_release);
+        return false;
+    }
+
+    if (analysisThread_.joinable())
+        analysisThread_.join();
+
+    const auto sampleRate = capture.sampleRate;
+    const auto captureGeneration = capture.generation;
+    analysisState_.store(SectionAnalysisState::running, std::memory_order_release);
+    {
+        const juce::ScopedLock lock(analysisLock_);
+        latestSectionAnalysis_.reset();
+    }
+
+    analysisThread_ = std::jthread(
+        [this, file, referenceStartSeconds, referenceDurationSeconds, referenceSamples,
+            referenceGeneration, sampleRate, captureGeneration, target = refEqTarget,
+            id = std::move(sectionId), left = std::move(mixLeft), right = std::move(mixRight)]
+        (const std::stop_token stopToken) mutable {
+            const auto finish = [this](const SectionAnalysisState state) {
+                analysisState_.store(state, std::memory_order_release);
+                analysisRunning_.store(false, std::memory_order_release);
+            };
+
+            if (stopToken.stop_requested()) {
+                finish(SectionAnalysisState::idle);
+                return;
+            }
+
+            const auto reference = readReferenceSection(
+                file, referenceStartSeconds, sampleRate, referenceSamples);
+            if (!reference.valid || stopToken.stop_requested()) {
+                finish(stopToken.stop_requested() ? SectionAnalysisState::idle : SectionAnalysisState::error);
+                return;
+            }
+
+            auto mixAnalysis = ehvota::analysis::analyzeCapturedSection(
+                id + ":mix", left, right, sampleRate);
+            auto refAnalysis = ehvota::analysis::analyzeCapturedSection(
+                id + ":reference", reference.left, reference.right, sampleRate);
+            auto comparison = ehvota::analysis::compareCapturedSections(mixAnalysis, refAnalysis);
+            auto levelMatch = ehvota::analysis::calculateReferenceMonitorTrim(
+                mixAnalysis.loudness, refAnalysis.loudness);
+
+            if (!comparison.valid || stopToken.stop_requested()) {
+                finish(stopToken.stop_requested() ? SectionAnalysisState::idle : SectionAnalysisState::error);
+                return;
+            }
+
+            if (referenceGeneration_.load(std::memory_order_acquire) != referenceGeneration) {
+                finish(SectionAnalysisState::stale);
+                return;
+            }
+
+            SectionAnalysisSnapshot snapshot;
+            snapshot.valid = true;
+            snapshot.sectionId = id;
+            snapshot.captureGeneration = captureGeneration;
+            snapshot.referenceGeneration = referenceGeneration;
+            snapshot.referenceStartSeconds = referenceStartSeconds;
+            snapshot.referenceDurationSeconds = referenceDurationSeconds;
+            snapshot.evidenceId = id + ":capture:" + std::to_string(captureGeneration)
+                + ":reference:" + std::to_string(referenceGeneration);
+            snapshot.mix = std::move(mixAnalysis);
+            snapshot.reference = std::move(refAnalysis);
+            snapshot.comparison = comparison;
+            snapshot.levelMatch = levelMatch;
+            {
+                const juce::ScopedLock lock(analysisLock_);
+                latestSectionAnalysis_ = snapshot;
+            }
+
+            if (snapshot.levelMatch.valid
+                && (blindComparison_.load(std::memory_order_acquire)
+                    || levelMatchMode_.load(std::memory_order_acquire) == RefHubLevelMatchMode::autoSection)) {
+                setReferenceMonitorTrimDb(static_cast<float>(snapshot.levelMatch.referenceMonitorTrimDb));
+            }
+
+            if (!target) {
+                finish(SectionAnalysisState::complete);
+                return;
+            }
+
+            finish(stageRefEqProposal(comparison, *target, snapshot.evidenceId)
+                ? SectionAnalysisState::proposalReady
+                : SectionAnalysisState::noProposal);
+        });
+    return true;
+}
+
+std::optional<SectionAnalysisSnapshot> RefHubAudioProcessor::copyLatestSectionAnalysis() const
+{
+    const juce::ScopedLock lock(analysisLock_);
+    return latestSectionAnalysis_;
+}
+
+std::optional<ehvota::analysis::SectionComparison> RefHubAudioProcessor::copyLatestComparison() const
+{
+    const auto snapshot = copyLatestSectionAnalysis();
+    if (!snapshot)
+        return std::nullopt;
+    return snapshot->comparison;
+}
+
+void RefHubAudioProcessor::setLevelMatchMode(const RefHubLevelMatchMode mode)
+{
+    levelMatchMode_.store(mode, std::memory_order_release);
+    if (blindComparison() || mode == RefHubLevelMatchMode::autoSection)
+        applyResolvedSectionLevelMatch();
+    else
+        setReferenceMonitorTrimDb(0.0f);
+}
+
+void RefHubAudioProcessor::setBlindComparison(const bool enabled)
+{
+    blindComparison_.store(enabled, std::memory_order_release);
+    if (enabled || levelMatchMode() == RefHubLevelMatchMode::autoSection)
+        applyResolvedSectionLevelMatch();
+    else
+        setReferenceMonitorTrimDb(0.0f);
+}
+
+bool RefHubAudioProcessor::sectionLevelMatchReady() const
+{
+    const auto snapshot = copyLatestSectionAnalysis();
+    return snapshot.has_value() && snapshot->valid && snapshot->levelMatch.valid
+        && snapshot->referenceGeneration == referenceGeneration_.load(std::memory_order_acquire);
+}
+
+void RefHubAudioProcessor::applyResolvedSectionLevelMatch()
+{
+    const auto snapshot = copyLatestSectionAnalysis();
+    if (!snapshot || !snapshot->valid || !snapshot->levelMatch.valid
+        || snapshot->referenceGeneration != referenceGeneration_.load(std::memory_order_acquire)) {
+        setReferenceMonitorTrimDb(0.0f);
+        return;
+    }
+    setReferenceMonitorTrimDb(static_cast<float>(snapshot->levelMatch.referenceMonitorTrimDb));
+}
+
+void RefHubAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    std::int64_t hostSample = -1;
+    if (auto* playHead = getPlayHead()) {
+        if (auto position = playHead->getPosition()) {
+            if (auto sample = position->getTimeInSamples())
+                hostSample = static_cast<std::int64_t>(*sample);
+        }
+    }
+    currentHostSample_.store(hostSample, std::memory_order_release);
+
+    float peak = 0.0f;
+    double sumSquares = 0.0;
+    std::uint64_t count = 0;
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel) {
+        const auto* data = buffer.getReadPointer(channel);
+        for (int i = 0; i < buffer.getNumSamples(); ++i) {
+            const auto sample = data[i];
+            peak = juce::jmax(peak, std::abs(sample));
+            sumSquares += static_cast<double>(sample) * sample;
+            ++count;
+        }
+    }
+
+    if (buffer.getNumChannels() > 0 && buffer.getNumSamples() > 0) {
+        const auto left = std::span<const float>(
+            buffer.getReadPointer(0), static_cast<std::size_t>(buffer.getNumSamples()));
+        const auto right = buffer.getNumChannels() > 1
+            ? std::span<const float>(buffer.getReadPointer(1), static_cast<std::size_t>(buffer.getNumSamples()))
+            : left;
+        mixCapture_.push(left, right);
+    }
+
+    const auto rms = count > 0
+        ? static_cast<float>(std::sqrt(sumSquares / static_cast<double>(count)))
+        : 0.0f;
+    livePeakDb_.store(juce::Decibels::gainToDecibels(peak, -100.0f), std::memory_order_relaxed);
+    liveRmsDb_.store(juce::Decibels::gainToDecibels(rms, -100.0f), std::memory_order_relaxed);
+    sampleCounter_.fetch_add(static_cast<std::uint64_t>(buffer.getNumSamples()), std::memory_order_relaxed);
+
+    const bool protectedRender = renderSafe_.load(std::memory_order_acquire) && isNonRealtime();
+    const bool audition = referenceAudition_.load(std::memory_order_acquire)
+        && referenceLoaded_.load(std::memory_order_acquire) && !protectedRender;
+    if (audition) {
+        juce::AudioSourceChannelInfo info(&buffer, 0, buffer.getNumSamples());
+        referenceTransport_.getNextAudioBlock(info);
+        buffer.applyGain(juce::Decibels::decibelsToGain(
+            referenceTrimDb_.load(std::memory_order_relaxed)));
+        if (referenceTransport_.hasStreamFinished())
+            referenceAudition_.store(false, std::memory_order_release);
+    }
+}
+
+void RefHubAudioProcessor::recoverSavedComponentMappings(
+    const std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances>& snapshots,
+    const std::size_t count)
+{
+    std::vector<ehvota::state::MappingIdentityCandidate> candidates;
+    candidates.reserve(count);
+    for (std::size_t i = 0; i < std::min(count, snapshots.size()); ++i) {
+        const auto& snapshot = snapshots[i];
+        if (snapshot.pluginKind != ehvota::communication::SharedPluginKind::refTap)
+            continue;
+        const auto persistentId = fixedText(snapshot.persistentId);
+        if (!ehvota::communication::validateSharedPersistentId(persistentId))
+            continue;
+        candidates.push_back({
+            persistentId,
+            fixedText(snapshot.name),
+            endpointToken(snapshot.id),
+            snapshot.heartbeatAgeMs <= 5000
+        });
+    }
+
+    const auto saved = copySavedComponentBindings();
+    for (const auto& binding : saved) {
+        if (binding.persistentRefTapId.empty())
+            continue;
+        const auto recovery = ehvota::state::resolveSavedComponentBinding(binding, candidates);
+        if (recovery.state != ehvota::state::MappingRecoveryState::exactPersistentEndpoint
+            || !recovery.candidate || !recovery.mayAutoRestore) {
+            componentCoordinator_.clearMapping(binding.role);
+            continue;
+        }
+
+        std::optional<ehvota::communication::SharedInstanceSnapshot> match;
+        for (std::size_t i = 0; i < std::min(count, snapshots.size()); ++i) {
+            const auto& snapshot = snapshots[i];
+            if (snapshot.pluginKind == ehvota::communication::SharedPluginKind::refTap
+                && snapshot.heartbeatAgeMs <= 5000
+                && fixedText(snapshot.persistentId) == binding.persistentRefTapId) {
+                if (match) {
+                    match.reset();
+                    break;
+                }
+                match = snapshot;
+            }
+        }
+        if (!match) {
+            componentCoordinator_.clearMapping(binding.role);
+            continue;
+        }
+
+        (void) componentCoordinator_.setMapping(binding.role, match->id);
+        const auto index = componentRoleIndex(binding.role);
+        if (index < savedComponentBindings_.size()) {
+            const juce::ScopedLock lock(savedMappingLock_);
+            savedComponentBindings_[index].lastKnownTrackName = fixedText(match->name);
+            savedComponentBindings_[index].lastKnownEndpointName = fixedText(match->name);
+        }
+    }
+}
+
+void RefHubAudioProcessor::timerCallback()
+{
+    restoreReferenceFromSavedPath();
+
+    const auto peak = livePeakDb_.load(std::memory_order_relaxed);
+    const auto rms = liveRmsDb_.load(std::memory_order_relaxed);
+    refLink_.publish({
+        peak,
+        rms,
+        1.0f,
+        peak > -99.0f && rms > -99.0f ? peak - rms : 0.0f,
+        sampleCounter_.load(std::memory_order_relaxed)
+    });
+
+    std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances> found {};
+    const auto foundCount = refLink_.readActive(found);
+    std::size_t kept = 0;
+    {
+        const juce::ScopedLock lock(linkCacheLock_);
+        for (std::size_t i = 0; i < foundCount && kept < linkedInstances_.size(); ++i) {
+            const auto& instance = found[i];
+            if (instance.pluginKind == ehvota::communication::SharedPluginKind::refHub
+                || instance.heartbeatAgeMs > 5000)
+                continue;
+            linkedInstances_[kept++] = instance;
+        }
+        for (std::size_t i = kept; i < linkedInstances_.size(); ++i)
+            linkedInstances_[i] = {};
+        linkedCount_.store(kept, std::memory_order_release);
+    }
+
+    recoverSavedComponentMappings(found, foundCount);
+    componentCoordinator_.reconcile(found, foundCount);
+    reconcileStagedProposal(found, foundCount);
+}
+
+std::size_t RefHubAudioProcessor::copyLinkedInstances(
+    std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances>& destination) const
+{
+    const juce::ScopedLock lock(linkCacheLock_);
+    const auto count = linkedCount_.load(std::memory_order_acquire);
+    for (std::size_t i = 0; i < count; ++i)
+        destination[i] = linkedInstances_[i];
+    return count;
+}
+
+bool RefHubAudioProcessor::setComponentMapping(
+    const ehvota::state::ReferenceRole role,
+    const ehvota::communication::SharedInstanceId refTap)
+{
+    const auto index = componentRoleIndex(role);
+    if (index >= savedComponentBindings_.size() || !refTap.valid())
+        return false;
+
+    std::optional<ehvota::communication::SharedInstanceSnapshot> chosen;
+    {
+        const juce::ScopedLock lock(linkCacheLock_);
+        const auto count = linkedCount_.load(std::memory_order_acquire);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto& candidate = linkedInstances_[i];
+            if (candidate.id.slot == refTap.slot && candidate.id.generation == refTap.generation
+                && candidate.pluginKind == ehvota::communication::SharedPluginKind::refTap
+                && candidate.heartbeatAgeMs <= 5000) {
+                chosen = candidate;
+                break;
+            }
+        }
+    }
+    if (!chosen)
+        return false;
+
+    const auto persistentId = fixedText(chosen->persistentId);
+    if (!ehvota::communication::validateSharedPersistentId(persistentId))
+        return false;
+    if (!componentCoordinator_.setMapping(role, refTap))
+        return false;
+
+    const juce::ScopedLock lock(savedMappingLock_);
+    savedComponentBindings_[index] = {
+        role,
+        persistentId,
+        fixedText(chosen->name),
+        fixedText(chosen->name),
+        {}
+    };
+    return true;
+}
+
+void RefHubAudioProcessor::clearComponentMapping(const ehvota::state::ReferenceRole role)
+{
+    componentCoordinator_.clearMapping(role);
+    const auto index = componentRoleIndex(role);
+    if (index >= savedComponentBindings_.size())
+        return;
+    const juce::ScopedLock lock(savedMappingLock_);
+    savedComponentBindings_[index] = {};
+    savedComponentBindings_[index].role = role;
+}
+
+std::array<RuntimeComponentMapping, 4> RefHubAudioProcessor::copyComponentMappings() const
+{
+    return componentCoordinator_.copyMappings();
+}
+
+std::array<ehvota::state::SavedComponentBinding, 4> RefHubAudioProcessor::copySavedComponentBindings() const
+{
+    const juce::ScopedLock lock(savedMappingLock_);
+    return savedComponentBindings_;
+}
+
+bool RefHubAudioProcessor::beginComponentCapture(
+    const double liveDurationSeconds,
+    const double referenceStartSeconds,
+    const double referenceDurationSeconds,
+    const ehvota::state::AnalysisScope& scope)
+{
+    std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances> linked {};
+    const auto count = copyLinkedInstances(linked);
+    return componentCoordinator_.begin(
+        refLink_, linked, count,
+        currentHostSample_.load(std::memory_order_acquire),
+        currentSampleRate_.load(std::memory_order_acquire),
+        liveDurationSeconds, referenceStartSeconds, referenceDurationSeconds, scope);
+}
+
+ComponentCaptureBatch RefHubAudioProcessor::copyComponentCaptureBatch() const
+{
+    return componentCoordinator_.copyBatch();
+}
+
+bool RefHubAudioProcessor::stageRefEqProposal(
+    const ehvota::analysis::SectionComparison& comparison,
+    const ehvota::communication::SharedInstanceId target,
+    std::string evidenceId)
+{
+    std::optional<ehvota::communication::SharedInstanceSnapshot> targetSnapshot;
+    {
+        const juce::ScopedLock lock(linkCacheLock_);
+        const auto count = linkedCount_.load(std::memory_order_acquire);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto& candidate = linkedInstances_[i];
+            if (candidate.id.slot == target.slot && candidate.id.generation == target.generation
+                && candidate.pluginKind == ehvota::communication::SharedPluginKind::refEQ) {
+                targetSnapshot = candidate;
+                break;
+            }
+        }
+    }
+    if (!targetSnapshot)
+        return false;
+
+    auto proposal = ehvota::safety::generateRefEqProposal(
+        comparison, target, targetSnapshot->parameters,
+        targetSnapshot->heartbeatAgeMs, std::move(evidenceId));
+    if (!proposal)
+        return false;
+
+    const juce::ScopedLock lock(proposalLock_);
+    stagedProposal_ = std::move(*proposal);
+    stagedTarget_ = target;
+    return true;
+}
+
+bool RefHubAudioProcessor::stageLatestRefEqProposal(
+    const ehvota::communication::SharedInstanceId target)
+{
+    const auto snapshot = copyLatestSectionAnalysis();
+    if (!snapshot || !snapshot->valid)
+        return false;
+    return stageRefEqProposal(snapshot->comparison, target, snapshot->evidenceId);
+}
+
+std::optional<ehvota::safety::Proposal> RefHubAudioProcessor::copyStagedProposal() const
+{
+    const juce::ScopedLock lock(proposalLock_);
+    return stagedProposal_;
+}
+
+void RefHubAudioProcessor::rejectStagedProposal()
+{
+    const juce::ScopedLock lock(proposalLock_);
+    if (!stagedProposal_ || stagedProposal_->state == ehvota::safety::ProposalState::applied)
+        return;
+    stagedProposal_->state = ehvota::safety::ProposalState::rejected;
+    stagedProposal_->userExplicitlyApproved = false;
+}
+
+bool RefHubAudioProcessor::approveAndSubmitStagedProposal()
+{
+    std::optional<ehvota::safety::Proposal> candidate;
+    ehvota::communication::SharedInstanceId target;
+    {
+        const juce::ScopedLock lock(proposalLock_);
+        if (!stagedProposal_
+            || stagedProposal_->state != ehvota::safety::ProposalState::readyForReview)
+            return false;
+        candidate = stagedProposal_;
+        target = stagedTarget_;
+    }
+
+    candidate->state = ehvota::safety::ProposalState::approved;
+    candidate->userExplicitlyApproved = true;
+    if (!ehvota::safety::mayApply(*candidate)
+        || !submitApprovedProposal(*candidate, target))
+        return false;
+
+    const juce::ScopedLock lock(proposalLock_);
+    if (stagedProposal_ && stagedProposal_->id == candidate->id)
+        stagedProposal_ = std::move(*candidate);
+    return true;
+}
+
+bool RefHubAudioProcessor::submitApprovedProposal(
+    const ehvota::safety::Proposal& proposal,
+    const ehvota::communication::SharedInstanceId target)
+{
+    auto kind = ehvota::communication::SharedPluginKind::unknown;
+    {
+        const juce::ScopedLock lock(linkCacheLock_);
+        const auto count = linkedCount_.load(std::memory_order_acquire);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto& snapshot = linkedInstances_[i];
+            if (snapshot.id.slot == target.slot && snapshot.id.generation == target.generation
+                && snapshot.heartbeatAgeMs <= 5000) {
+                kind = snapshot.pluginKind;
+                break;
+            }
+        }
+    }
+    if (kind == ehvota::communication::SharedPluginKind::unknown)
+        return false;
+    auto mailbox = ehvota::safety::encodeApprovedSharedProposal(proposal, target, kind);
+    return mailbox.has_value() && refLink_.submitProposal(target, *mailbox);
+}
+
+std::vector<ehvota::safety::ProposalHistoryEntry> RefHubAudioProcessor::copyProposalHistory() const
+{
+    const juce::ScopedLock lock(proposalLock_);
+    return proposalHistory_.snapshot();
+}
+
+bool RefHubAudioProcessor::undoLastAppliedProposal()
+{
+    std::optional<ehvota::safety::ProposalHistoryEntry> undo;
+    {
+        const juce::ScopedLock lock(proposalLock_);
+        if (stagedProposal_ && stagedProposal_->state == ehvota::safety::ProposalState::approved)
+            return false;
+        undo = proposalHistory_.makeApprovedUndoForLatest();
+    }
+    if (!undo || !submitApprovedProposal(undo->proposal, undo->target))
+        return false;
+
+    const juce::ScopedLock lock(proposalLock_);
+    stagedProposal_ = undo->proposal;
+    stagedTarget_ = undo->target;
+    return true;
+}
+
+void RefHubAudioProcessor::reconcileStagedProposal(
+    const std::array<ehvota::communication::SharedInstanceSnapshot,
+        ehvota::communication::sharedLinkMaxInstances>& snapshots,
+    const std::size_t count)
+{
+    const juce::ScopedLock lock(proposalLock_);
+    if (!stagedProposal_ || stagedProposal_->state != ehvota::safety::ProposalState::approved)
+        return;
+
+    auto expected = ehvota::safety::encodeApprovedSharedProposal(
+        *stagedProposal_, stagedTarget_, ehvota::communication::SharedPluginKind::refEQ);
+    if (!expected)
+        return;
+
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto& snapshot = snapshots[i];
+        if (snapshot.id.slot != stagedTarget_.slot
+            || snapshot.id.generation != stagedTarget_.generation)
+            continue;
+        if (snapshot.mailbox.proposalId != expected->proposalId)
+            return;
+
+        switch (snapshot.mailbox.state) {
+        case ehvota::communication::SharedProposalState::applied:
+            stagedProposal_->state = ehvota::safety::ProposalState::applied;
+            (void) proposalHistory_.recordApplied(*stagedProposal_, stagedTarget_);
+            return;
+        case ehvota::communication::SharedProposalState::rejected:
+            stagedProposal_->state = ehvota::safety::ProposalState::rejected;
+            if (snapshot.mailbox.resultCode == 3)
+                stagedProposal_->targetStateFresh = false;
+            return;
+        case ehvota::communication::SharedProposalState::error:
+            stagedProposal_->state = ehvota::safety::ProposalState::invalid;
+            return;
+        default:
+            return;
+        }
+    }
+}
+
+juce::AudioProcessorEditor* RefHubAudioProcessor::createEditor()
+{
+    return new RefHubAudioProcessorEditor(*this);
+}
+
+void RefHubAudioProcessor::getStateInformation(juce::MemoryBlock& destination)
+{
+    juce::MemoryOutputStream stream(destination, true);
+    stream.writeInt(5);
+    stream.writeFloat(referenceTrimDb_.load(std::memory_order_relaxed));
+    stream.writeBool(renderSafe_.load(std::memory_order_acquire));
+    stream.writeInt(static_cast<int>(levelMatchMode_.load(std::memory_order_acquire)));
+    stream.writeBool(blindComparison_.load(std::memory_order_acquire));
+    stream.writeString(savedReferencePath());
+
+    const auto bindings = copySavedComponentBindings();
+    for (const auto& binding : bindings) {
+        stream.writeString(juce::String(binding.persistentRefTapId));
+        stream.writeString(juce::String(binding.lastKnownTrackName));
+        stream.writeString(juce::String(binding.lastKnownEndpointName));
+        stream.writeString(juce::String(binding.lastKnownLiveRuntimeId));
+    }
+}
+
+void RefHubAudioProcessor::setStateInformation(const void* data, const int bytes)
+{
+    if (data == nullptr || bytes <= 0)
+        return;
+
+    juce::MemoryInputStream stream(data, static_cast<std::size_t>(bytes), false);
+    const auto version = stream.readInt();
+    if (version >= 2) {
+        setReferenceMonitorTrimDb(stream.readFloat());
+        setRenderSafe(stream.readBool());
+    }
+    if (version >= 4) {
+        const auto rawMode = juce::jlimit(0, 2, stream.readInt());
+        levelMatchMode_.store(static_cast<RefHubLevelMatchMode>(rawMode), std::memory_order_release);
+        blindComparison_.store(stream.readBool(), std::memory_order_release);
+    }
+    if (version >= 5) {
+        {
+            const juce::ScopedLock lock(referenceLock_);
+            savedReferencePath_ = stream.readString();
+            referenceRestoreAttempted_ = false;
+        }
+
+        std::array<ehvota::state::SavedComponentBinding, 4> restored;
+        for (std::size_t i = 0; i < restored.size(); ++i) {
+            restored[i].role = componentRoles[i];
+            const auto persistent = stream.readString().toStdString();
+            if (persistent.empty() || ehvota::communication::validateSharedPersistentId(persistent))
+                restored[i].persistentRefTapId = persistent;
+            restored[i].lastKnownTrackName = stream.readString().toStdString();
+            restored[i].lastKnownEndpointName = stream.readString().toStdString();
+            restored[i].lastKnownLiveRuntimeId = stream.readString().toStdString();
+            componentCoordinator_.clearMapping(componentRoles[i]);
+        }
+        const juce::ScopedLock lock(savedMappingLock_);
+        savedComponentBindings_ = std::move(restored);
+    }
+}
+
+} // namespace ehvota::refhub
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new ehvota::refhub::RefHubAudioProcessor();
+}
